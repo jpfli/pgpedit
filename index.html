@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8" />
+    <title>PokittoGP Track Editor</title>
+    <link rel="stylesheet" href="pgpedit.css">
+</head>
+<body>
+
+
+<div style="position=relative;">
+  <div class="sidepanel">
+    <!-- Sidepanel -->
+
+    <div class="panelrow"">
+      <h2 align="center">
+        PokittoGP
+      </h2>
+      <h1 align="center">
+        Track Editor
+      </h1>
+    </div>
+
+    <hr>
+
+    <div class="panelrow">
+      <label class="droplist-container" style="width: 100%;">
+        <select id="mode-select">
+          <option value="tiles-tab">Tiles</option>
+          <option value="billboards-tab">Billboards</option>
+          <option value="waypoints-tab">Waypoints</option>
+        </select>
+        <span class="droplist-mark"></span>
+      </label>
+    </div>
+
+    <div id="tiles-tab" class="tabcontent" style="display:block;">
+
+      <div class="panelrow">
+        <canvas id="tileset-canvas" style="margin: 0 auto; cursor: pointer; border: 1px solid var(--border-color);"></canvas>
+      </div>
+
+      <div class="panelrow">
+        <canvas id="brushtile" style="margin: 0 auto; border: 1px solid var(--border-color);"></canvas>
+      </div>
+
+      <div class="panelrow">
+        <button type="button" class="button" style="width: 100%;" onclick="selectFile('loadtex-file')">
+          Load Textures
+        <input id="loadtex-file" type="file" name="file" style="display: none" />
+      </div>
+
+    </div>
+
+    <div id="billboards-tab" class="tabcontent"">
+      <div class="panelrow" style="text-align: center;">
+        <div class="radio" style="display: inline-block; width:100%;">
+          <input id="sel_billboard-tool" type="radio" name="billboard-action" checked="true" />
+          <label for="sel_billboard-tool">Select & Move</label>
+        </div>
+        <br>
+        <div class="radio" style="display: inline-block; width:50%;">
+          <input id="add_billboard-tool" type="radio" name="billboard-action" />
+          <label for="add_billboard-tool">Add</label>
+        </div><div class="radio" style="display: inline-block; width:50%;">
+          <input id="del_billboard-tool" type="radio" name="billboard-action" />
+          <label for="del_billboard-tool">Del</label>
+        </div>
+      </div>
+
+      <div class="panelrow" style="text-align: center;">
+        <canvas id="billboard-canvas" style="margin: 0 auto; border: 1px solid var(--border-color);"></canvas>
+      </div>
+
+      <div class="panelrow">
+        <label class="droplist-container" style="width: 75%;">
+          <select id="billboard-droplist">
+            <!-- Populated in javascript -->
+          </select>
+          <span class="droplist-mark"></span>
+        </label>
+        <div id="billboard-color" class="color-prop" style="width: 22%"></div>
+      </div>
+
+    </div>
+
+    <div id="waypoints-tab" class="tabcontent"">
+      <div class="panelrow" style="text-align: center;">
+        <div class="radio" style="display: inline-block; width:100%;">
+          <input id="select-tool" type="radio" name="action" checked="true" />
+          <label for="select-tool">Select & Move</label>
+        </div>
+        <br>
+        <div class="radio" style="display: inline-block; width:50%;">
+          <input id="add-tool" type="radio" name="action" />
+          <label for="add-tool">Add</label>
+        </div><div class="radio" style="display: inline-block; width:50%;">
+          <input id="del-tool" type="radio" name="action" />
+          <label for="del-tool">Del</label>
+        </div>
+      </div>
+
+      <div class="panelrow">
+        Radius:
+        <div class="textprop">
+          <input id="radius" type="text" class="textprop" style="width: 100%;" />
+        </div>
+      </div>
+      <div class="panelrow">
+        Speed Limit:
+        <div class="textprop">
+          <input id="speed" type="text" class="textprop" style="width: 100%;" />
+        </div>
+      </div>
+      <div class="panelrow" style="text-align: center;">
+        <label class="checkbox-container">Checkpoint
+          <input id="checkpoint" type="checkbox" checked="true">
+          <span class="checkbox-mark"></span>
+        </label>
+      </div>
+    </div>
+
+    <hr>
+
+    <div class="panelrow">
+      Track Name:
+      <div class="textprop">
+        <input id="trackname-text" type="text" class="textprop" maxlength="13" style="width: 100%;" />
+      </div>
+    </div>
+
+    <div class="panelrow">
+      Author:
+      <div class="textprop">
+        <input id="author-text" type="text" class="textprop" maxlength="13" style="width: 100%;" />
+      </div>
+    </div>
+
+    <div class="panelrow" style="text-align: center;">
+      <button type="button" class="button" style="width: 50%;" onclick="selectFile('import')">
+        Import<input id="import" type="file" name="file" style="display: none" />
+      </button><button id="export" type="button" class="button" style="width: 50%;">
+        Export</button>
+    </div>
+
+  </div>
+  
+  <div class="mainview">
+    <canvas id="tilemap"></canvas>
+  </div>
+</div>
+
+
+
+
+<script>
+  function selectFile(input_id) { document.getElementById(input_id).click(); }
+</script>
+
+<script type="text/javascript" src="JSZip/jszip.js"></script>
+<script type="text/javascript" src="JSZip/jszip-utils.js"></script>
+<!--[if IE]>
+<script type="text/javascript" src="dist/jszip-utils-ie.js"></script>
+<![endif]-->
+
+<script type="text/javascript" src="settings.js"></script>
+<script type="text/javascript" src="pgpedit.js"></script>
+
+
+</body>
+</html>
+

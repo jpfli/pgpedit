@@ -1,0 +1,248 @@
+
+h1, h2 {
+  margin: 0;
+  padding: 0;
+  color: #101010;
+}
+div {
+  box-sizing: border-box;
+}
+canvas {
+  display: block;
+}
+canvas:active {
+  cursor: default;
+}
+
+
+.sidepanel {
+  float: left;
+  width: 200px;
+  height: 100vh;
+  overflow: auto;
+  background: var(--panel-color);
+  border: solid var(--border-color);
+  border-width: 0 1px 0 0;
+  padding: 5px;
+}
+.mainview {
+  float: left;
+  width: calc(100% - 200px);
+  height: 100vh;
+  overflow: auto;
+  background: #ccc;
+}
+
+.panelrow {
+  position: relative;
+  border: var(--row-border);
+  padding: 5px 0;
+}
+.tabcontent {
+  display: none;
+}
+
+.button {
+  padding: 2px 6px;
+  color: var(--text-color);
+  background: var(--prop-color);
+  border: solid 1px var(--border-color);
+  border-radius: var(--border-radius);
+  display: inline-block;
+}
+.button:hover {
+  background: var(--hover-color);
+}
+.button:active {
+  background: var(--active-color);
+}
+
+
+/* Radiobutton styling
+*/
+div.radio {
+  /*float: left;*/
+}
+div.radio label {
+  display: block;
+  padding: 2px 6px;
+  background: var(--prop-color);
+  border: solid 1px var(--border-color);
+  border-radius: var(--border-radius);
+  text-align: center;
+}
+div.radio label:hover {
+  background: var(--hover-color);
+}
+div.radio label:active {
+  background: var(--hover-color);
+}
+input[type="radio"]:checked + label {
+  background: var(--active-color);
+}
+input[type="radio"] {
+  display: none;
+}
+
+
+/* Checkbox styling
+*/
+.checkbox-container {
+  display: block;
+  position: relative;
+  text-align: left;
+  padding-left: 25px;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+input[type="checkbox"] {
+  display: none;
+}
+.checkbox-mark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 15px;
+  width: 15px;
+  background: var(--prop-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+}
+.checkbox-container:hover input ~ .checkbox-mark {
+  background: var(--hover-color);
+}
+.checkbox-container input:checked ~ .checkbox-mark {
+  background: var(--active-color);
+}
+.checkbox-mark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+.checkbox-container input:checked ~ .checkbox-mark:after {
+  display: block;
+}
+.checkbox-container .checkbox-mark:after {
+  left: 4px;
+  top: 0px;
+  width: 3px;
+  height: 7px;
+  border: solid var(--text-color);
+  border-width: 0 3px 3px 0;
+  -webkit-transform: rotate(45deg);
+  -ms-transform: rotate(45deg);
+  transform: rotate(45deg);
+}
+
+
+/* Textinput styling
+*/
+input.textprop {
+  /*font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;*/
+  padding: 2px 6px;
+  color: var(--text-color);
+  background-color: var(--prop-color);
+  border: solid 1px var(--border-color);
+  border-radius: var(--border-radius);
+  /*display: inline-block;*/
+}
+input.textprop:hover {
+  background-color: var(--hover-color);
+}
+input.textprop:focus {
+  background-color: var(--active-color);
+}
+
+
+/* Droplist styling
+*/
+.droplist-container {
+  display: inline-block;
+  position: relative;
+  padding-left: 2px;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+.droplist-mark {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  height: 15px;
+  width: 15px;
+  background: transparent;
+  pointer-events: none;
+}
+.droplist-container select {
+  /* reset */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  
+  /* styling */
+  width: 100%;
+  color: var(--text-color);
+  background: var(--prop-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 2px 12px 2px 2px;
+  margin-left:-2px;
+}
+.droplist-container select:hover {
+  background: var(--hover-color);
+}
+.droplist-container select:active {
+  background: var(--active-color);
+}
+.droplist-mark:after {
+  content: "";
+  position: absolute;
+  display: block;
+}
+.droplist-mark:after {
+  content:'\25BC';
+  right: 0px;
+}
+
+
+/* Color box styling
+*/
+.color-prop {
+  position: absolute;
+  height: 22px;
+  right: 0;
+  top: 5px;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+}
+
+
+:root {
+  --panel-color: #747474;
+  --prop-color: #666;
+  --text-color: #f8f0e8;
+  --hover-color: #777;
+  --active-color: #505050;
+  --border-color: #111;
+  --border-radius: 3px;
+  --row-border: 0; /*1px solid red;*/
+}
+
+* {
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+}
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font: 12px Verdana, Arial, sans-serif;
+  color: var(--text-color);
+}
+hr { width: 90%; }
+
