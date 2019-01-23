@@ -135,6 +135,7 @@ Billboards.prototype.setActiveBillboardObject = function(billboard_obj) {
 function Textures(settings) {
   console.log("Textures.constructor()");
   this._textures = [];
+  this._color_map = new Map();
 
   this._textures.length = settings.textures.length;
   for(let tex_idx = 0; tex_idx < this._textures.length; tex_idx++) {
@@ -153,6 +154,7 @@ function Textures(settings) {
 Textures.prototype.IMAGE_WIDTH = 64;
 Textures.prototype.IMAGE_HEIGHT = 64;
 Textures.prototype.BKGND_COLOR = "#ff00ff";
+Textures.prototype.COLORS_MAX = 214;
 
 Textures.prototype.cropRGBImage = function(image) {
   let rect = this._getRGBImageCropRectangle(image);
@@ -240,13 +242,18 @@ Textures.prototype.textureToDataURL = function(tex_idx) {
     return;
   }
 
-  // Color table:
-  let color_map = this._createColorMap();
   let color_array = [];
-  color_array.length = color_map.size;
-  for(let [color, idx] of color_map) {
+  let len = 0;
+  for(let val of this._color_map.values()) {
+    len = Math.max(len, val);
+  }
+  color_array.length = len;
+  for(let [color, idx] of this._color_map) {
     color_array[idx] = color;
   }
+  color_array[0] = this.BKGND_COLOR;
+  console.log(color_array);
+
   let color_table = "";
   for(let idx = 0; idx < color_array.length; idx++) {
     let color = color_array[idx];
@@ -302,8 +309,8 @@ Textures.prototype.textureToDataURL = function(tex_idx) {
       let g = tex_img.data[offset+3*x+1];
       let b = tex_img.data[offset+3*x+2];
       let color = this._rgbToHtmlColor(r, g, b);
-      pxlarray += (color_map.has(color)) ? 
-        String.fromCharCode(color_map.get(color)) : 
+      pxlarray += (this._color_map.has(color)) ? 
+        String.fromCharCode(this._color_map.get(color)) : 
         String.fromCharCode(0);
       x++;
     }
@@ -316,8 +323,9 @@ Textures.prototype.textureToDataURL = function(tex_idx) {
   return "data:image/bmp;base64,"+btoa(file_header+info_header+color_header+color_table+pxlarray);
 }
 
-Textures.prototype._createColorMap = function() {
-  let color_map = new Map();
+Textures.prototype.createColorMap = function() {
+  this._color_map.clear();
+  console.log("ColorMap size: "+this._color_map.size);
 
   for(let idx = 0; idx < this._textures.length; idx++) {
     let tex_img = this._textures[idx].image;
@@ -326,28 +334,26 @@ Textures.prototype._createColorMap = function() {
       let g = tex_img.data[3*idx+1];
       let b = tex_img.data[3*idx+2];
       let color = this._rgbToHtmlColor(r, g, b);
-      color_map.set(color, 0);
+      this._color_map.set(color, 0);
     }
   }
 
   let idx = 1;
-  for(let key of color_map.keys()) {
-    if(key == this.BKGND_COLOR) {
-      color_map.set(key, 0);
-    }
-    else if(idx > 255) {
-      color_map.delete(key);
-    }
-    else {
-      color_map.set(key, idx);
+  for(let key of this._color_map.keys()) {
+    if(key != this.BKGND_COLOR) {
+      if(idx < this.COLORS_MAX) {
+        this._color_map.set(key, idx);
+      }
+      else {
+        this._color_map.set(key, 0);
+      }
       idx++;
     }
   }
-  console.log(color_map);
-  if(idx > 255) {
-    alert("Texture image has too many colors.");
+  console.log(this._color_map);
+  if(idx > this.COLORS_MAX) {
+    alert("Warning: Texture image has more than "+this.COLORS_MAX+" colors.");
   }
-  return color_map;
 }
 
 Textures.prototype._rgbToHtmlColor = function(r, g, b) {
@@ -432,13 +438,14 @@ function Tileset(settings) {
   this._active_id = 0;
   this._images = [];
   this._symbols = settings.symbols;
-  this._tilesize = settings.tile_size;
 
   this._images.length = settings.num_tiles;
 }
 
+Tileset.prototype.TILE_SIZE = 32;
+
 Tileset.prototype.getTileSize = function() {
-  return this._tilesize
+  return this.TILE_SIZE
 }
 
 Tileset.prototype.getTileImageData = function(tile_id) {
@@ -509,9 +516,18 @@ Waypoints.prototype.clearWaypoints = function() {
 }
 
 Waypoints.prototype.addWaypoint = function() {
-  let len = this._waypoints.push(new Waypoint());
-  this._active_waypoint = this._waypoints[len-1];
-  return this._waypoints[len-1];
+  let idx = 0;
+  while(idx < this._waypoints.length) {
+    if(this._waypoints[idx] == this._active_waypoint) {
+      idx++;
+      break;
+    }
+    idx++;
+  }
+  let new_wp = new Waypoint();
+  this._waypoints.splice(idx, 0, new_wp);
+  this._active_waypoint = new_wp;
+  return new_wp;
 }
 
 Waypoints.prototype.delWaypoint = function(idx) {
@@ -602,7 +618,7 @@ function PgpEditUI(pgpedit_data) {
 PgpEditUI.prototype.TILE_SIZE = 32;
 PgpEditUI.prototype.GRID_COLOR = "rgb(80, 80, 80)";
 PgpEditUI.prototype.HIGHLIGHT_COLOR = "rgba(255, 128, 128, 0.5)";
-PgpEditUI.prototype.BBRD_MAX_NUM = 30;
+PgpEditUI.prototype.BBRD_MAX_NUM = 16;
 PgpEditUI.prototype.BBRD_SELECTED_COLOR = "hsl(180,100%,75%)";
 PgpEditUI.prototype.BBRD_RECT_SIZE = 10;
 PgpEditUI.prototype.WP_MAX_NUM = 30;
@@ -646,7 +662,7 @@ PgpEditUI.prototype.init = function(settings) {
   let num_tiles = idx_arrays.length;
   this.tile_templates.length = num_tiles;
   for(idx = 0; idx < num_tiles; idx++) {
-    this.tile_templates[idx] = Array.from(atob(idx_arrays[idx]), (x) => x.charCodeAt(x));
+    this.tile_templates[idx] = Array.from(atob(idx_arrays[idx]), (x) => x.charCodeAt(0));
   }
   this.createTilesetImages();
   this.updateTilesetImages(this._pgpedit_data.tileset);
@@ -1238,6 +1254,7 @@ PgpEditUI.prototype.onExportButtonClick = function(evt) {
     zip.file("objects.txt", [waypoints_str, billboards_str].join("\n"));
   }
 
+  this._pgpedit_data.textures.createColorMap();
   for(let idx = 0; idx < this._pgpedit_data.textures.numTextures(); idx++) {
     let dataurl = this._pgpedit_data.textures.textureToDataURL(idx);
     let texname = this._pgpedit_data.textures.getTexture(idx).name;
@@ -1454,8 +1471,8 @@ PgpEditUI.prototype.parseTrack = function(text) {
   let linenum = 0;
   let currline = lines[linenum].trim();
   if(currline[0] != '[') {
-    this._pgpedit_data.trackname = lines[0];
-    this._pgpedit_data.author = lines[1];
+    this._pgpedit_data.trackname = lines[0].slice(0, 12);
+    this._pgpedit_data.author = lines[1].slice(0, 12);
     linenum = this.parseTilemap(lines, 2);
     if(linenum < 2+32) {
       // Error in parsing tilemap
@@ -1640,52 +1657,3 @@ PgpEditUI.prototype.billboardsToString = function() {
 let pgpedit_data = new PgpEdit_Data(pgpedit_settings);
 let pgpedit_ui = new PgpEditUI(pgpedit_data);
 pgpedit_ui.init(pgpedit_settings);
-
-
-/*
-function imageTest() {
-  let img = document.getElementById("test-img");
-  console.log(img);
-  let canvas = document.getElementById("test-canvas");
-  canvas.width = img.width;
-  canvas.height = img.height;
-  let ctx = canvas.getContext("2d");
-  ctx.drawImage(img, 0, 0);
-  let imgdata = ctx.getImageData(0, 0, canvas.width, canvas.height);
-}
-
-function jsonTest() {
-  let url = "assets/tileset.json";
-  let req = new XMLHttpRequest();
-  req.onload = function(evt) {
-    pgpedit_ui.init(JSON.parse(this.responseText));
-  };
-  req.overrideMimeType("text/plain");
-  req.open("GET", url);
-  //req.open("GET", chrome.extension.getURL(url), true);
-  req.send();
-}
-
-function urlToPromise(url) {
-  return new Promise(function(resolve, reject) {
-    JSZipUtils.getBinaryContent(url, function (err, data) {
-      if(err) {
-        reject(err);
-      }
-      else {
-        resolve(data);
-      }
-    });
-  });
-}
-
-PgpEditUI.prototype.dataURLtoBlob = function(dataurl) {
-    var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
-        bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
-    while(n--){
-        u8arr[n] = bstr.charCodeAt(n);
-    }
-    return new Blob([u8arr], {type:mime});
-}
-*/
-
