@@ -5,7 +5,6 @@ var pgpedit_settings = {
   ],
   tileset: {
     num_tiles: 20,
-    tile_size: 32,
     symbols: ".|:!o-~=%\\r,`/+j#o*.",
     template: {
       width: 8,
