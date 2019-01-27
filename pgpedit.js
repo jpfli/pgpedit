@@ -610,7 +610,7 @@ function PgpEditUI(pgpedit_data) {
   this._texture_rects.set("tex03",{x: 16, y: 12, w: 8, h: 12});
   this._texture_rects.set("tex04",{x: 0, y: 24, w: 16, h: 24});
   this._texture_rects.set("tex05",{x: 16, y: 24, w: 16, h: 24});
-  this._texture_rects.set("bkground",{x: 0, y: 48, w: 22, h: 16});
+  this._texture_rects.set("bkground",{x: 0, y: 48, w: 32, h: 16});
   this._texture_rects.set("sprite01",{x: 32, y: 0, w: 32, h: 32});
   this._texture_rects.set("sprite02",{x: 32, y: 32, w: 32, h: 32});
 }
@@ -1226,7 +1226,7 @@ PgpEditUI.prototype.onImportFileChange = function(evt) {
   if(file.type.match("text/*")) {
     let reader = new FileReader();
     reader.onload = function(evt) {
-      this.parseTrack(reader.result);
+      this.parseTrack(file.name, reader.result);
 
       document.getElementById("trackname-text").value = this._pgpedit_data.trackname;
       document.getElementById("author-text").value = this._pgpedit_data.author;
@@ -1248,9 +1248,10 @@ PgpEditUI.prototype.onExportButtonClick = function(evt) {
   let track_str = this.trackToString();
   zip.file("track.txt", this.trackToString());
 
-  let waypoints_str = this.waypointsToString();
-  let billboards_str = this.billboardsToString();
-  if(waypoints_str.length > 0 || billboards_str.length > 0) {
+  if(this._pgpedit_data.waypoints.numWaypoints() > 0 || 
+      this._pgpedit_data.billboards.numBillboardObjects() > 0) {
+    let waypoints_str = this.waypointsToString();
+    let billboards_str = this.billboardsToString();
     zip.file("objects.txt", [waypoints_str, billboards_str].join("\n"));
   }
 
@@ -1461,7 +1462,7 @@ PgpEditUI.prototype.drawWaypoints = function() {
   }
 }
 
-PgpEditUI.prototype.parseTrack = function(text) {
+PgpEditUI.prototype.parseTrack = function(filename, text) {
   let lines = text.split('\n');
   if(lines.length < this.rows+2) {
     alert("Import failed: too few lines.");
@@ -1470,7 +1471,7 @@ PgpEditUI.prototype.parseTrack = function(text) {
 
   let linenum = 0;
   let currline = lines[linenum].trim();
-  if(currline[0] != '[') {
+  if(filename != "objects.txt") {
     this._pgpedit_data.trackname = lines[0].slice(0, 12);
     this._pgpedit_data.author = lines[1].slice(0, 12);
     linenum = this.parseTilemap(lines, 2);
@@ -1628,26 +1629,22 @@ PgpEditUI.prototype.trackToString = function() {
 
 PgpEditUI.prototype.waypointsToString = function() {
   let lines = [];
+  lines.push("[waypoints]");
   let num_waypoints = this._pgpedit_data.waypoints.numWaypoints();
-  if(num_waypoints > 0) {
-    lines.push("[waypoints]");
-    for(let idx = 0; idx < num_waypoints; idx++) {
-      let waypoint = this._pgpedit_data.waypoints.getWaypoint(idx);
-      lines.push(waypoint.x+","+waypoint.y+","+waypoint.radius+","+waypoint.speed+","+(waypoint.checkpoint ? 1 : 0));
-    }
+  for(let idx = 0; idx < num_waypoints; idx++) {
+    let waypoint = this._pgpedit_data.waypoints.getWaypoint(idx);
+    lines.push(waypoint.x+","+waypoint.y+","+waypoint.radius+","+waypoint.speed+","+(waypoint.checkpoint ? 1 : 0));
   }
   return lines.join('\n');
 }
 
 PgpEditUI.prototype.billboardsToString = function() {
   let lines = [];
+  lines.push("[billboards]");
   let num_bboards = this._pgpedit_data.billboards.numBillboardObjects();
-  if(num_bboards > 0) {
-    lines.push("[billboards]");
-    for(let idx = 0; idx < num_bboards; idx++) {
-      let billboard = this._pgpedit_data.billboards.getBillboardObject(idx);
-      lines.push(billboard.model_index+","+billboard.x+","+billboard.y);
-    }
+  for(let idx = 0; idx < num_bboards; idx++) {
+    let billboard = this._pgpedit_data.billboards.getBillboardObject(idx);
+    lines.push(billboard.model_index+","+billboard.x+","+billboard.y);
   }
   return lines.join('\n');
 }
