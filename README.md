@@ -6,6 +6,8 @@ Features:
 * Tile based track editing
 * Billboard object placement
 * Create waypoints for NPC vehicles
+* Undo and redo actions
+* Copy tiles
 * Custom tile textures
 * Track and textures saved in a single zip file
 
