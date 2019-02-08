@@ -471,25 +471,12 @@ Tilemap.prototype = {
   },
 
   putTileData: function(data, dx, dy, width, height) {
-    if(dx+width > this._width) {
-      width = this._width-dx;
-    }
-    if(dx < 0) {
-      width += dx;
-      dx = 0;
-    }
-    if(dy+height > this._height) {
-      height = this._height-dy;
-    }
-    if(dy < 0) {
-      height += dy;
-      dy = 0;
-    }
-
     for(let idx = 0; idx < width*height; idx++) {
       let x = idx%width;
       let y = (idx/width)|0;
-      this._data[this._width*(dy+y)+dx+x] = data[idx];
+      if(dx+x >= 0 && dx+x < this._width && dy+y >= 0 && dy+y < this._height) {
+        this._data[this._width*(dy+y)+dx+x] = data[idx];
+      }
     }
 
     this._notifyObservers(dx, dy, width, height);
@@ -528,9 +515,9 @@ function Tileset(pgpedit_app) {
   this._pattern_h = 8;
 }
 Tileset.prototype = {
-  NUM_TILE_TEXTURES: 5,
-  TEXTURE_BLOCK_WIDTH: 8,
-  TEXTURE_BLOCK_HEIGHT: 8,
+  _NUM_TILE_TEXTURES: 7,
+  _TEXTURE_BLOCK_WIDTH: 8,
+  _TEXTURE_BLOCK_HEIGHT: 8,
 
   initTiles: function(symbols, pattern_w, pattern_h, patterns) {
 //    console.log("Tileset.initTiles()");
@@ -564,16 +551,16 @@ Tileset.prototype = {
   },
 
   getTileWidth: function() {
-    return this._pattern_w*this.TEXTURE_BLOCK_WIDTH;
+    return this._pattern_w*this._TEXTURE_BLOCK_WIDTH;
   },
 
   getTileHeight: function() {
-    return this._pattern_h*this.TEXTURE_BLOCK_HEIGHT;
+    return this._pattern_h*this._TEXTURE_BLOCK_HEIGHT;
   },
 
   getTileRGBData: function(tile_idx) {
     let tblocks = [];
-    for(let idx = 0; idx < this.NUM_TILE_TEXTURES; idx++) {
+    for(let idx = 0; idx < this._NUM_TILE_TEXTURES; idx++) {
       tblocks.push(this._createTextureBlocks(this._pgpedit_app.textures[idx]));
     }
     // Flatten the array
@@ -581,8 +568,8 @@ Tileset.prototype = {
 //    console.log(tblocks);
 
     // Width and height of single texture block in pixels
-    let tblock_w = this.TEXTURE_BLOCK_WIDTH;
-    let tblock_h = this.TEXTURE_BLOCK_HEIGHT;
+    let tblock_w = this._TEXTURE_BLOCK_WIDTH;
+    let tblock_h = this._TEXTURE_BLOCK_HEIGHT;
     let tile_w = this.getTileWidth();
     let tile_h = this.getTileHeight();
 
@@ -619,8 +606,8 @@ Tileset.prototype = {
   },
 
   _createTextureBlocks: function(texture) {
-    let tblock_w = this.TEXTURE_BLOCK_WIDTH;
-    let tblock_h = this.TEXTURE_BLOCK_HEIGHT;
+    let tblock_w = this._TEXTURE_BLOCK_WIDTH;
+    let tblock_h = this._TEXTURE_BLOCK_HEIGHT;
     let img_w = texture.width;
     let img_h = img_w;
 
@@ -1647,11 +1634,15 @@ PgpEdit_View.prototype = {
         let brush_data = this._tilebrush.tile_data;
         let track_data = this._pgpedit_app.track_tiles.getTileData(x, y, w, h);
         for(let idx = 0; idx < w*h; idx++) {
-          if(brush_data[idx] != track_data[idx]) {
-            // Only draw brush when it actually differs from track tiles
-            let op = new putTileData_Operator(brush_data, x, y, w, h, "TILES");
-            this._pgpedit_app.executeOperator(op);
-            break;
+          let dy = (idx/w)|0;
+          let dx = idx%w;
+          if(x+dx >= 0 && x+dx < this._pgpedit_app.track_tiles.width && y+dy >= 0 && y+dy < this._pgpedit_app.track_tiles.height ) {
+            if(brush_data[idx] != track_data[idx]) {
+              // Only draw brush when it actually differs from track tiles
+              let op = new putTileData_Operator(brush_data, x, y, w, h, "TILES");
+              this._pgpedit_app.executeOperator(op);
+              break;
+            }
           }
         }
       }
