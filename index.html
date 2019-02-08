@@ -40,13 +40,13 @@
       </div>
 
       <div class="panelrow">
-        <canvas id="brushtile" style="margin: 0 auto; border: 1px solid var(--border-color);"></canvas>
+        <canvas id="tilebrush-canvas" style="margin: 0 auto; border: 1px solid var(--border-color);"></canvas>
       </div>
 
       <div class="panelrow">
-        <button type="button" class="button" style="width: 100%;" title="Load textures from an image file" onclick="selectFile('loadtex-file')">
+        <button type="button" class="button" style="width: 100%;" title="Load textures from an image file" onclick="selectFile('loadtex-fileinput')">
           Load Textures
-        <input id="loadtex-file" type="file" name="file" style="display: none" />
+        <input id="loadtex-fileinput" type="file" name="file" style="display: none" />
       </div>
 
     </div>
@@ -86,34 +86,34 @@
     <div id="waypoints-tab" class="tabcontent"">
       <div class="panelrow" style="text-align: center;">
         <div class="radio" style="display: inline-block; width:100%;" title="Select and move waypoints">
-          <input id="select-tool" type="radio" name="action" checked="true" />
-          <label for="select-tool">Select & Move</label>
+          <input id="sel_waypoint-tool" type="radio" name="action" checked="true" />
+          <label for="sel_waypoint-tool">Select & Move</label>
         </div>
         <br>
         <div class="radio" style="display: inline-block; width:50%;" title="Add new waypoints after the selected waypoint">
-          <input id="add-tool" type="radio" name="action" />
-          <label for="add-tool">Add</label>
+          <input id="add_waypoint-tool" type="radio" name="action" />
+          <label for="add_waypoint-tool">Add</label>
         </div><div class="radio" style="display: inline-block; width:50%;" title="Delete waypoints">
-          <input id="del-tool" type="radio" name="action" />
-          <label for="del-tool">Del</label>
+          <input id="del_waypoint-tool" type="radio" name="action" />
+          <label for="del_waypoint-tool">Del</label>
         </div>
       </div>
 
       <div class="panelrow">
         Radius:
         <div class="textprop" title="Waypoint radius">
-          <input id="radius" type="text" class="textprop" style="width: 100%;" />
+          <input id="radius-textinput" type="text" class="textprop" style="width: 100%;" />
         </div>
       </div>
       <div class="panelrow">
         Speed Limit:
         <div class="textprop" title="Target speed for NPC vehicles [0..100]">
-          <input id="speed" type="text" class="textprop" style="width: 100%;" />
+          <input id="speed-textinput" type="text" class="textprop" style="width: 100%;" />
         </div>
       </div>
       <div class="panelrow" style="text-align: center;" title="Also use this waypoint as a checkpoint">
         <label class="checkbox-container">Checkpoint
-          <input id="checkpoint" type="checkbox" checked="true">
+          <input id="checkpoint-boolinput" type="checkbox" checked="true">
           <span class="checkbox-mark"></span>
         </label>
       </div>
@@ -124,28 +124,28 @@
     <div class="panelrow">
       Track Name:
       <div class="textprop" title="Track name (max 12 characters)">
-        <input id="trackname-text" type="text" class="textprop" maxlength="12" style="width: 100%;" />
+        <input id="trackname-textinput" type="text" class="textprop" maxlength="21" style="width: 100%;" />
       </div>
     </div>
 
     <div class="panelrow">
       Author:
       <div class="textprop" title="Author's name (max 12 characters)">
-        <input id="author-text" type="text" class="textprop" maxlength="12" style="width: 100%;" />
+        <input id="author-textinput" type="text" class="textprop" maxlength="21" style="width: 100%;" />
       </div>
     </div>
 
     <div class="panelrow" style="text-align: center;">
-      <button type="button" class="button" style="width: 50%;" title="Load track and objects from a text file" onclick="selectFile('import')">
-        Load<input id="import" type="file" name="file" style="display: none" />
-      </button><button id="export" type="button" class="button" style="width: 50%;" title="Save track, objects and textures in a zip file">
+      <button type="button" class="button" style="width: 50%;" title="Load track and objects from a text file" onclick="selectFile('loadtrack-fileinput')">
+        Load<input id="loadtrack-fileinput" type="file" name="file" style="display: none" />
+      </button><button id="savetrack-button" type="button" class="button" style="width: 50%;" title="Save track, objects and textures in a zip file">
         Save</button>
     </div>
 
   </div>
   
   <div class="mainview">
-    <canvas id="tilemap"></canvas>
+    <canvas id="tilemap-canvas"></canvas>
   </div>
 </div>
 
