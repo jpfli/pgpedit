@@ -1,1425 +1,1783 @@
 
-/* =====================
- * PgpEdit Data classes:
- * =====================
+/* ================
+ * Property classes
+ * ================ */
+
+/* StringProperty class
 */
+function StringProperty(maxlen = 0) {
+//  console.log("IntProperty.constructor(maxlen="+maxlen+")");
+
+  this._observers = [];
+  this._maxlen = maxlen;
+  this._value = "";
+}
+StringProperty.prototype = {
+  get maxlen() {
+    return this._maxlen;
+  },
+
+  get value() {
+    return this._value;
+  },
+
+  set value(value) {
+//    console.log("StringProperty.setValue("+value+")");
+
+    if(value.localeCompare(this._value) != 0) {
+      if(this._maxlen > 0) {
+        value = value.slice(0, this._maxlen);
+      }
+      this._value = value;
+      this._notifyObservers();
+    }
+  },
+
+  addObserver: function(observer) {
+    this._observers.push(observer);
+    observer.onPropertyUpdated(this);
+  },
+  removeObserver: function(observer) {
+    let idx = this._observers.indexOf(observer);
+    if(idx >= 0) {
+      this._observers.splice(idx, 1);
+    }
+  },
+  _notifyObservers: function() {
+//    console.log("StringProperty._notifyObservers()");
+
+    for(let idx = 0; idx < this._observers.length; idx++) {
+      this._observers[idx].onPropertyUpdated(this);
+    }
+  }
+};
+
+/* IntProperty class
+*/
+function IntProperty(min = -2147483648, max = 2147483647) {
+//  console.log("IntProperty.constructor(min="+min+", max="+max+")");
+
+  this._observers = [];
+  this._min = min;
+  this._max = max;
+  this._value = 0;
+}
+IntProperty.prototype = {
+  get value() {
+    return this._value;
+  },
+
+  set value(value) {
+//    console.log("IntProperty.setValue("+value+")");
+
+    if(this._value != value) {
+      if(this._min >= value) {
+        value = this._min;
+      }
+      else if(this._max <= value) {
+        value = this._max;
+      }
+      this._value = value;
+      this._notifyObservers();
+    }
+  },
+
+  addObserver: function(observer) {
+    this._observers.push(observer);
+    observer.onPropertyUpdated(this);
+  },
+
+  removeObserver: function(observer) {
+    let idx = this._observers.indexOf(observer);
+    if(idx >= 0) {
+      this._observers.splice(idx, 1);
+    }
+  },
+
+  _notifyObservers: function() {
+    for(let idx = 0; idx < this._observers.length; idx++) {
+      this._observers[idx].onPropertyUpdated(this);
+    }
+  }
+};
+
+
+/* ============
+ * Data classes
+ * ============ */
+
 
 /* BillboardModel class
 */
 function BillboardModel(name, color) {
   this.name = name;
   this.color = color;
+  this.texture = "";
 }
 
 
 /* BillboardObject class
 */
-function BillboardObject(model_index, x, y) {
-  this.model_index = model_index;
-  this.x = x;
-  this.y = y;
+function BillboardObject(creator, model_index, x, y) {
+  this._creator = creator;
+  this._model_index = model_index;
+  this._x = x;
+  this._y = y;
 }
+
+BillboardObject.prototype = {
+  get model_index() {
+    return this._model_index;
+  },
+  set model_index(val) {
+    this._model_index = val;
+    this._notifyCreator();
+  },
+
+  get x() {
+    return this._x;
+  },
+  set x(val) {
+    this._x = val;
+    this._notifyCreator();
+  },
+
+  get y() {
+    return this._y;
+  },
+  set y(val) {
+    this._y = val;
+    this._notifyCreator();
+  },
+
+  _notifyCreator: function() {
+    this._creator.onBillboardObjectUpdated();
+  }
+};
 
 
 /* Billboards class
 */
 function Billboards() {
-  console.log("Billboards.constructor()");
+//  console.log("Billboards.constructor()");
+
+  this._observers = [];
+
   this._active_model_idx = -1;
   this._active_billboard_object = null;
   this._billboard_models = [];
   this._billboard_objs = [];
 }
 
-Billboards.prototype.numBillboardModels = function() {
-  return this._billboard_models.length;
-}
+Billboards.prototype = {
+  numBillboardModels: function() {
+    return this._billboard_models.length;
+  },
 
-Billboards.prototype.clearBillboardModels = function() {
-  this._types.length = 0;
-  this._active_model_idx = -1;
-}
+  clearBillboardModels: function() {
+    this._types.length = 0;
+    this._active_model_idx = -1;
+  },
 
-Billboards.prototype.getBillboardModel = function(idx) {
-  if(idx >= 0 && idx < this._billboard_models.length) {
-    return this._billboard_models[idx];
-  }
-  return null;
-}
+  getBillboardModel: function(idx) {
+    if(idx >= 0 && idx < this._billboard_models.length) {
+      return this._billboard_models[idx];
+    }
+    return null;
+  },
 
-Billboards.prototype.addBillboardModel = function() {
-  let len = this._billboard_models.push(new BillboardModel("", "#ffffff"));
-  this._active_model_idx = len-1;
-  return this._billboard_models[len-1];
-}
+  addBillboardModel: function() {
+    let len = this._billboard_models.push(new BillboardModel("", "#ffffff"));
+    this._active_model_idx = len-1;
+    return this._billboard_models[len-1];
+  },
 
-Billboards.prototype.delBillboardModel = function(idx) {
-  console.log("Billboards.delType("+idx+")");
-  if(idx >= 0 && idx < this._billboard_models.length) {
-    if(idx == this._active_model_idx) {
-      if(idx > 0) {
+  delBillboardModel: function(idx) {
+//    console.log("Billboards.delType("+idx+")");
+    if(idx >= 0 && idx < this._billboard_models.length) {
+      if(idx == this._active_model_idx) {
+        if(idx > 0) {
+          this._active_model_idx--;
+        }
+      }
+      else if(idx < this._active_model_idx) {
         this._active_model_idx--;
       }
+      this._billboard_models.splice(idx, 1);
     }
-    else if(idx < this._active_model_idx) {
-      this._active_model_idx--;
+    if(this._billboard_models.length > 0) {
+//      console.log("Active BillboardModel: '"+this._billboard_models[_active_model_idx].name+"'");
     }
-    this._billboard_models.splice(idx, 1);
-  }
-  if(this._billboard_models.length > 0) {
-    console.log("Active BillboardModel: '"+this._billboard_models[_active_model_idx].name+"'");
-  }
-}
+  },
 
-Billboards.prototype.getActiveModelIndex = function() {
-  return this._active_model_idx;
-}
+  getActiveModelIndex: function() {
+    return this._active_model_idx;
+  },
 
-Billboards.prototype.setActiveModelIndex = function(idx) {
-  if(idx >= 0 && idx < this._billboard_models.length) {
-    this._active_model_idx = idx;
-  }
-  else {
-    this._active_model_idx = -1;
-  }
-}
-
-Billboards.prototype.numBillboardObjects = function() {
-  return this._billboard_objs.length;
-}
-
-Billboards.prototype.clearBillboardObjects = function() {
-  this._billboard_objs.length = 0;
-}
-
-Billboards.prototype.getBillboardObject = function(idx) {
-  if(idx >= 0 && idx < this._billboard_objs.length) {
-    return this._billboard_objs[idx];
-  }
-  return null;
-}
-
-Billboards.prototype.addBillboardObject = function() {
-  let len = this._billboard_objs.push(new BillboardObject(this._active_model_idx, 0, 0));
-  this._active_billboard_obj = this._billboard_objs[len-1];
-  return this._active_billboard_obj;
-}
-
-Billboards.prototype.delBillboardObject = function(idx) {
-  if(idx >= 0 && idx < this._billboard_objs.length) {
-    if(this._active_billboard_obj == this._billboard_objs[idx]) {
-      if(idx > 0) {
-        this._active_billboard_obj = this._billboard_objs[idx-1];
-      }
-      else {
-        this._active_billboard_obj = (this._billboard_objs.length > 1) ? 
-          this._billboard_objs[idx+1] : 
-          null;
-      }
+  setActiveModelIndex: function(idx) {
+    if(idx >= 0 && idx < this._billboard_models.length) {
+      this._active_model_idx = idx;
     }
-    this._billboard_objs.splice(idx, 1);
-  }
-}
-
-Billboards.prototype.getActiveBillboardObject = function() {
-  return this._active_billboard_obj;
-}
-
-Billboards.prototype.setActiveBillboardObject = function(billboard_obj) {
-  this._active_billboard_obj = billboard_obj;
-}
-
-
-/* Textures class
-*/
-function Textures(settings) {
-  console.log("Textures.constructor()");
-  this._textures = [];
-  this._color_map = new Map();
-
-  this._textures.length = settings.textures.length;
-  for(let tex_idx = 0; tex_idx < this._textures.length; tex_idx++) {
-    let tex_name = settings.textures[tex_idx].name;
-    let w = settings.textures[tex_idx].width;
-    let h = settings.textures[tex_idx].height;
-    let b64data = settings.textures[tex_idx].data;
-    let tex_image = this._RGBImageFromBase64(b64data, w, h);
-    if(tex_name.indexOf("sprite") >= 0) {
-      this.cropRGBImage(tex_image);
+    else {
+      this._active_model_idx = -1;
     }
-    this._textures[tex_idx] = {name: tex_name, image: tex_image};
-  }
-}
+  },
 
-Textures.prototype.IMAGE_WIDTH = 64;
-Textures.prototype.IMAGE_HEIGHT = 64;
-Textures.prototype.BKGND_COLOR = "#ff00ff";
-Textures.prototype.COLORS_MAX = 214;
+  numBillboardObjects: function() {
+    return this._billboard_objs.length;
+  },
 
-Textures.prototype.cropRGBImage = function(image) {
-  let rect = this._getRGBImageCropRectangle(image);
+  clearBillboardObjects: function() {
+    this._billboard_objs.length = 0;
 
-  let new_data = [];
-  new_data.length = 3*rect.w*rect.h;
+    this._notifyObservers();
+  },
 
-  let img_w = image.width;
-  for(let y = 0; y < rect.h; y++) {
-    for(let x = 0; x < rect.w; x++) {
-      new_data[3*(rect.w*y+x)+0] = image.data[3*(img_w*(rect.y+y)+rect.x+x)+0];
-      new_data[3*(rect.w*y+x)+1] = image.data[3*(img_w*(rect.y+y)+rect.x+x)+1];
-      new_data[3*(rect.w*y+x)+2] = image.data[3*(img_w*(rect.y+y)+rect.x+x)+2];
+  getBillboardObject: function(idx) {
+    if(idx >= 0 && idx < this._billboard_objs.length) {
+      return this._billboard_objs[idx];
     }
-  }
-
-  console.log("width; "+image.width+", height: "+image.height+", rect: ");
-  console.log(rect);
-
-  image.width = rect.w;
-  image.height = rect.h;
-  image.data = new_data;
-}
-
-Textures.prototype._getRGBImageCropRectangle = function(image) {
-  let img_w = image.width;
-  let img_h = image.height;
-
-  let padding_top = img_h;
-  let padding_right = img_w;
-  let padding_bottom = img_h;
-  let padding_left = img_w;
-
-  for(let y = 0; y < img_h; y++) {
-    //let offset = y*4*img_w;
-    for(let x = 0; x < img_w; x++) {
-      let r = image.data[3*(img_w*y+x)+0];
-      let g = image.data[3*(img_w*y+x)+1];
-      let b = image.data[3*(img_w*y+x)+2];
-      let color = this._rgbToHtmlColor(r, g, b);
-      if(color != this.BKGND_COLOR) {
-        padding_top = Math.min(padding_top, y);
-        padding_right = Math.min(padding_right, img_w-1-x);
-        padding_bottom = Math.min(padding_bottom, img_h-1-y);
-        padding_left = Math.min(padding_left, x);
-      }
-    }
-  }
-  let rect = {
-    x: padding_left,
-    y: padding_top,
-    w: img_w-(padding_left+padding_right),
-    h: img_h-(padding_top+padding_bottom)
-  };
-
-  width_adj = ((rect.w+3)&0xfffffffc)-rect.w;
-  rect.x -= (width_adj>>1);
-  rect.w += width_adj;
-  if(rect.x < 0) {
-    rect.x = 0;
-  }
-  else if(rect.x+rect.w >= img_w) {
-    rect.x = img_w-rect.w;
-  }
-  return rect;
-}
-
-Textures.prototype._RGBImageFromBase64 = function(b64data, w, h) {
-  return {width: w, height: h, data: Array.from(atob(b64data), (x) => x.charCodeAt(0))};
-}
-
-Textures.prototype.numTextures = function() {
-  return this._textures.length;
-}
-
-Textures.prototype.getTexture = function(tex_idx) {
-  if(tex_idx < 0 || tex_idx >= this._textures.length) {
     return null;
-  }
-  return this._textures[tex_idx];
-}
+  },
 
-Textures.prototype.textureToDataURL = function(tex_idx) {
-  if(tex_idx < 0 || tex_idx >= this._textures.length) {
-    return;
-  }
+  addBillboardObject: function(idx) {
+    let billboard_obj = new BillboardObject(this, this._active_model_idx, 0, 0);
+    this._billboard_objs.splice(idx, 0, billboard_obj);
 
-  let color_array = [];
-  let len = 0;
-  for(let val of this._color_map.values()) {
-    len = Math.max(len, val);
-  }
-  color_array.length = len;
-  for(let [color, idx] of this._color_map) {
-    color_array[idx] = color;
-  }
-  color_array[0] = this.BKGND_COLOR;
-  console.log(color_array);
+    this._active_billboard_obj = billboard_obj;
 
-  let color_table = "";
-  for(let idx = 0; idx < color_array.length; idx++) {
-    let color = color_array[idx];
-    let r = parseInt(color.substring(1, 3), 16);
-    let g = parseInt(color.substring(3, 5), 16);
-    let b = parseInt(color.substring(5, 7), 16);
-    color_table += this._int32ToString((r<<16)+(g<<8)+b);
-  }
+    this._notifyObservers();
 
-  // Color header:
-  let color_header = this._int32ToString(0x73524742);   // color space type, default "sRGB" (0x73524742)
-  for(let c = 0; c < 16; c++) {
-    color_header += this._int32ToString(0);
-  }
+    return billboard_obj;
+  },
 
-  // Info header:
-  let tex_img = this._textures[tex_idx].image;
-  let img_w = tex_img.width;
-  let img_h = tex_img.height;
-  let bpp = 8;
-  let padded_w = (img_w+3)&0xfffffffc;
-  let bpp_bytes = ((bpp+7)/8)|0;
-  let info_header_len = 40+color_header.length;
-  let info_header = this._int32ToString(40+color_header.length);   // Size of this header
-  info_header += this._int32ToString(img_w);   // bitmap width in pixels
-  info_header += this._int32ToString(img_h);   // bitmap height in pixels
-  info_header += this._int16ToString(1);   // number of color planes (must be 1)
-  info_header += this._int16ToString(bpp);   // number of bits per pixel
-  info_header += this._int32ToString(0);   // compression method (0 - none)
-  info_header += this._int32ToString(padded_w*img_h*bpp_bytes);   // size of the raw bitmap data (can be 0 for uncompressed images)
-  info_header += this._int32ToString(0);   // x pixels per meter
-  info_header += this._int32ToString(0);   // y pixels per meter
-  info_header += this._int32ToString(color_table.length/4);   // No. color indexes in the color table. Use 0 for the max number of colors allowed by bit_count
-  info_header += this._int32ToString(0);   // No. of colors used for displaying the bitmap. If 0 all colors are required
-
-  // File header:
-  let data_offset = 14+info_header_len+color_table.length;
-  let pxlarray_size = padded_w*img_h*bpp_bytes;
-  let file_size = data_offset+pxlarray_size;
-  let file_header = this._int16ToString(0x4d42);   // file type, always "BM" which is 0x4D42
-  file_header += this._int32ToString(file_size);   // file size in bytes
-  file_header += this._int16ToString(0);   // Reserved, always 0
-  file_header += this._int16ToString(0);   // Reserved, always 0
-  file_header += this._int32ToString(data_offset);   // start position of pixel data from the beginning of the file
-
-  // Pixel array:
-  let pxlarray = "";
-  for(let y = img_h-1; y >= 0 ; y--) {
-    let offset = y*3*img_w;
-    let x = 0;
-    while(x < img_w) {
-      let r = tex_img.data[offset+3*x+0];
-      let g = tex_img.data[offset+3*x+1];
-      let b = tex_img.data[offset+3*x+2];
-      let color = this._rgbToHtmlColor(r, g, b);
-      pxlarray += (this._color_map.has(color)) ? 
-        String.fromCharCode(this._color_map.get(color)) : 
-        String.fromCharCode(0);
-      x++;
-    }
-    while(x < padded_w) {
-      pxlarray += String.fromCharCode(0);
-      x++;
-    }
-  }
-
-  return "data:image/bmp;base64,"+btoa(file_header+info_header+color_header+color_table+pxlarray);
-}
-
-Textures.prototype.createColorMap = function() {
-  this._color_map.clear();
-  console.log("ColorMap size: "+this._color_map.size);
-
-  for(let idx = 0; idx < this._textures.length; idx++) {
-    let tex_img = this._textures[idx].image;
-    for(let idx = 0; idx < tex_img.width*tex_img.height; idx++) {
-      let r = tex_img.data[3*idx+0];
-      let g = tex_img.data[3*idx+1];
-      let b = tex_img.data[3*idx+2];
-      let color = this._rgbToHtmlColor(r, g, b);
-      this._color_map.set(color, 0);
-    }
-  }
-
-  let idx = 1;
-  for(let key of this._color_map.keys()) {
-    if(key != this.BKGND_COLOR) {
-      if(idx < this.COLORS_MAX) {
-        this._color_map.set(key, idx);
+  delBillboardObject: function(idx) {
+    if(idx >= 0 && idx < this._billboard_objs.length) {
+      if(this._active_billboard_obj == this._billboard_objs[idx]) {
+        if(idx > 0) {
+          this._active_billboard_obj = this._billboard_objs[idx-1];
+        }
+        else {
+          this._active_billboard_obj = (this._billboard_objs.length > 1) ? 
+            this._billboard_objs[idx+1] : 
+            null;
+        }
       }
-      else {
-        this._color_map.set(key, 0);
-      }
-      idx++;
+      this._billboard_objs.splice(idx, 1);
+//      console.log("Billboards.delBillboardObject(): Billboard object deleted");
+      this._notifyObservers();
+    }
+  },
+
+  getActiveBillboardObject: function() {
+    return this._active_billboard_obj;
+  },
+
+  setActiveBillboardObject: function(billboard_obj) {
+    this._active_billboard_obj = billboard_obj;
+
+    this._notifyObservers();
+  },
+
+  onBillboardObjectUpdated: function() {
+    this._notifyObservers();
+  },
+
+  addObserver: function(observer) {
+    this._observers.push(observer);
+    observer.onBillboardsUpdated();
+  },
+
+  removeObserver: function(observer) {
+    let idx = this._observers.indexOf(observer);
+    if(idx >= 0) {
+      this._observers.splice(idx, 1);
+    }
+  },
+
+  _notifyObservers: function() {
+//    console.log("Billboards._notifyObservers()");
+    for(let idx = 0; idx < this._observers.length; idx++) {
+      this._observers[idx].onBillboardsUpdated();
     }
   }
-  console.log(this._color_map);
-  if(idx > this.COLORS_MAX) {
-    alert("Warning: Texture image has more than "+this.COLORS_MAX+" colors.");
+};
+
+
+/* Texture class
+*/
+function Texture(name) {
+//  console.log("Texture.constructor()");
+
+  this._name = name;
+  this._width = 0;
+  this._height = 0;
+  this._rgb_data = [];
+}
+Texture.prototype = {
+  _BKGND_COLOR: "#ff00ff",
+
+  get name() {
+    return this._name;
+  },
+
+  get width() {
+    return this._width;
+  },
+
+  get height() {
+    return this._height;
+  },
+
+  getRGBData: function(sx, sy, width, height) {
+    let num_pixels = width*height;
+    let rgb_data = [];
+    rgb_data.length = 3*num_pixels;
+    let offset = 3*(this._width*sy+sx);
+    for(let y = 0; y < height; y++) {
+      for(let x = 0; x < width; x++) {
+        rgb_data[3*(width*y+x)] = this._rgb_data[offset+3*(this._width*y+x)];
+        rgb_data[3*(width*y+x)+1] = this._rgb_data[offset+3*(this._width*y+x)+1];
+        rgb_data[3*(width*y+x)+2] = this._rgb_data[offset+3*(this._width*y+x)+2];
+      }
+    }
+    return rgb_data;
+  },
+
+  fromRGBData: function(rgb_data, width, height, autocrop) {
+    let rect = {x: 0, y: 0, w: width, h: height};
+    if(autocrop) {
+      rect = this._getCropRectangle(rgb_data, width, height);
+    }
+
+    this._width = rect.w;
+    this._height = rect.h;
+
+    // Copy rgb_data array
+    this._rgb_data.length = 3*rect.w*rect.h;
+    for(let idx = 0; idx < rect.w*rect.h; idx++) {
+      let sy = rect.y+((idx/rect.w)|0);
+      let sx = rect.x+(idx%rect.w);
+      this._rgb_data[3*idx] = rgb_data[3*(width*sy+sx)];
+      this._rgb_data[3*idx+1] = rgb_data[3*(width*sy+sx)+1];
+      this._rgb_data[3*idx+2] = rgb_data[3*(width*sy+sx)+2];
+    }
+
+//    console.log(rect);
+  },
+
+  _getCropRectangle: function(rgb_data, width, height) {
+    let padding_top = height;
+    let padding_right = width;
+    let padding_bottom = height;
+    let padding_left = width;
+
+    for(let y = 0; y < height; y++) {
+      for(let x = 0; x < width; x++) {
+        let r = rgb_data[3*(width*y+x)+0];
+        let g = rgb_data[3*(width*y+x)+1];
+        let b = rgb_data[3*(width*y+x)+2];
+        let color = this._RGBToHtmlColor(r, g, b);
+        if(color != this._BKGND_COLOR) {
+          padding_top = Math.min(padding_top, y);
+          padding_right = Math.min(padding_right, width-1-x);
+          padding_bottom = Math.min(padding_bottom, height-1-y);
+          padding_left = Math.min(padding_left, x);
+        }
+      }
+    }
+    let rect = {
+      x: padding_left,
+      y: padding_top,
+      w: width-(padding_left+padding_right),
+      h: height-(padding_top+padding_bottom)
+    };
+
+    width_adj = ((rect.w+3)&0xfffffffc)-rect.w;
+    rect.x -= (width_adj>>1);
+    rect.w += width_adj;
+    if(rect.x < 0) {
+      rect.x = 0;
+    }
+    else if(rect.x+rect.w >= width) {
+      rect.x = width-rect.w;
+    }
+    return rect;
+  },
+
+  _RGBToHtmlColor: function(r, g, b) {
+    r_str = (r < 0x10) ? "0"+r.toString(16) : r.toString(16);
+    g_str = (g < 0x10) ? "0"+g.toString(16) : g.toString(16);
+    b_str = (b < 0x10) ? "0"+b.toString(16) : b.toString(16);
+    return "#"+r_str+g_str+b_str;
   }
-}
-
-Textures.prototype._rgbToHtmlColor = function(r, g, b) {
-  r_str = (r < 0x10) ? "0"+r.toString(16) : r.toString(16);
-  g_str = (g < 0x10) ? "0"+g.toString(16) : g.toString(16);
-  b_str = (b < 0x10) ? "0"+b.toString(16) : b.toString(16);
-  return "#"+r_str+g_str+b_str;
-}
-
-Textures.prototype._int16ToString = function(val) {
-  return [val, (val>>8)].map(item => String.fromCharCode(item&0xff)).join("");
-}
-
-Textures.prototype._int32ToString = function(val) {
-  return [val, (val>>8), (val>>16), (val>>24)].map(item => String.fromCharCode(item&0xff)).join("");
-}
+};
 
 
 /* Tilemap class
 */
-function Tilemap() {
-  console.log("Tilemap.constructor()");
-  this._mapdata = [];
-  this._width = 0;
-  this._height = 0;
-}
+function Tilemap(width, height) {
+//  console.log("Tilemap.constructor()");
 
-Tilemap.prototype.getWidth = function() {
-  return this._width;
-}
+  this._observers = [];
 
-Tilemap.prototype.setWidth = function(width) {
-  console.log("Tilemap.setWidth("+width+")");
-  if(width < 0) {
-    width = 0;
-  }
-  for(let row = 0; row < this._height; row++) {
-    this._mapdata[row].length = width;
-    for(let col = this._width; col < width; col++) {
-      this._mapdata[row][col] = 0;
-    }
-  }
   this._width = width;
-}
+  this._height = height;
+  this._data = [];
 
-Tilemap.prototype.getHeight = function() {
-  return this._height;
-}
-
-Tilemap.prototype.setHeight = function(height) {
-  console.log("Tilemap.setHeight("+height+")");
-  if(height < 0) {
-    height = 0;
+  this._data.length = width*height;
+  for(let idx = 0; idx < width*height; idx++) {
+    this._data[idx] = 0;
   }
-  this._mapdata.length = height;
-  for(let row = this._height; row < height; row++) {
-    this._mapdata[row] = [];
-    for(let col = 0; col < this._width; col++) {
-      this._mapdata[row][col] = 0;
+}
+Tilemap.prototype = {
+  get width() {
+    return this._width;
+  },
+
+  set width(width) {
+    if(this._width != width) {
+      this._width = width;
+      this._data.length = width*this._height;
+      for(let idx = 0; idx < width*this._height; idx++) {
+        this._data[idx] = 0;
+      }
+    }
+  },
+
+  get height() {
+    return this._height;
+  },
+
+  set height(height) {
+    if(this._height != height) {
+      this._height = height;
+      this._data.length = this._width*height;
+      for(let idx = 0; idx < this._width*height; idx++) {
+        this._data[idx] = 0;
+      }
+    }
+  },
+
+  getTileData: function(sx, sy, width, height) {
+    let data = [];
+    data.length = width*height;
+    for(let idx = 0; idx < width*height; idx++) {
+      let x = idx%width;
+      let y = (idx/width)|0;
+      data[idx] = this._data[this._width*(sy+y)+sx+x];
+    }
+    return data;
+  },
+
+  putTileData: function(data, dx, dy, width, height) {
+    if(dx+width > this._width) {
+      width = this._width-dx;
+    }
+    if(dx < 0) {
+      width += dx;
+      dx = 0;
+    }
+    if(dy+height > this._height) {
+      height = this._height-dy;
+    }
+    if(dy < 0) {
+      height += dy;
+      dy = 0;
+    }
+
+    for(let idx = 0; idx < width*height; idx++) {
+      let x = idx%width;
+      let y = (idx/width)|0;
+      this._data[this._width*(dy+y)+dx+x] = data[idx];
+    }
+
+    this._notifyObservers(dx, dy, width, height);
+  },
+
+  addObserver: function(observer) {
+    this._observers.push(observer);
+    observer.onTilemapUpdated(this, 0, 0, this._width, this._height);
+  },
+
+  removeObserver: function(observer) {
+    let idx = this._observers.indexOf(observer);
+    if(idx >= 0) {
+      this._observers.splice(idx, 1);
+    }
+  },
+
+  _notifyObservers: function(x, y, width, height) {
+//    console.log("Tilemap._notifyObservers()");
+    for(let idx = 0; idx < this._observers.length; idx++) {
+      this._observers[idx].onTilemapUpdated(this, x, y, width, height);
     }
   }
-  this._height = height;
-}
-
-Tilemap.prototype.getTileId = function(column, row) {
-  if(row < this.getHeight() && row >= 0 && column < this.getWidth() && column >= 0) {
-    return this._mapdata[row][column];
-  }
-}
-
-Tilemap.prototype.setTileId = function(column, row, tile_id) {
-  if(row < this.getHeight() && row >= 0 && column < this.getWidth() && column >= 0) {
-    this._mapdata[row][column] = tile_id;
-  }
-}
+};
 
 
 /* Tileset class
 */
-function Tileset(settings) {
-  console.log("Tileset.constructor()");
-  this._active_id = 0;
-  this._images = [];
-  this._symbols = settings.symbols;
+function Tileset(pgpedit_app) {
+//  console.log("Tileset.constructor()");
 
-  this._images.length = settings.num_tiles;
+  this._pgpedit_app = pgpedit_app;
+  this._symbols = [];
+  this._patterns = [];
+  this._pattern_w = 8;
+  this._pattern_h = 8;
 }
+Tileset.prototype = {
+  NUM_TILE_TEXTURES: 5,
+  TEXTURE_BLOCK_WIDTH: 8,
+  TEXTURE_BLOCK_HEIGHT: 8,
 
-Tileset.prototype.TILE_SIZE = 32;
+  initTiles: function(symbols, pattern_w, pattern_h, patterns) {
+//    console.log("Tileset.initTiles()");
 
-Tileset.prototype.getTileSize = function() {
-  return this.TILE_SIZE
-}
+    this._symbols = symbols.split("");
 
-Tileset.prototype.getTileImageData = function(tile_id) {
-  return this._images[tile_id];
-}
+    this._pattern_w = pattern_w;
+    this._pattern_h = pattern_h;
+    this._patterns.length = patterns.length;
+    for(idx = 0; idx < this._patterns.length; idx++) {
+      // Copy array at patterns[idx]
+      this._patterns[idx] = patterns[idx].slice(0);
+    }
 
-Tileset.prototype.setTileImageData = function(tile_id, imagedata) {
-  this._images[tile_id] = imagedata;
-}
+//    console.log(symbols);
+//    console.log(patterns);
+  },
 
-Tileset.prototype.numTiles = function() {
-  return this._images.length;
-}
+  numTiles: function() {
+    return this._patterns.length;
+  },
 
-Tileset.prototype.tileSymbolAt = function(tile_id) {
-  if(tile_id >=0 && tile_id < this.numTiles()) {
-    return this._symbols[tile_id];
+  getTileSymbol: function(tile_id) {
+    if(tile_id >=0 && tile_id < this.numTiles()) {
+      return this._symbols[tile_id];
+    }
+  },
+
+  tileIndexOf: function(symbol) {
+    return this._symbols.indexOf(symbol);
+  },
+
+  getTileWidth: function() {
+    return this._pattern_w*this.TEXTURE_BLOCK_WIDTH;
+  },
+
+  getTileHeight: function() {
+    return this._pattern_h*this.TEXTURE_BLOCK_HEIGHT;
+  },
+
+  getTileRGBData: function(tile_idx) {
+    let tblocks = [];
+    for(let idx = 0; idx < this.NUM_TILE_TEXTURES; idx++) {
+      tblocks.push(this._createTextureBlocks(this._pgpedit_app.textures[idx]));
+    }
+    // Flatten the array
+    tblocks = [].concat.apply([], tblocks);
+//    console.log(tblocks);
+
+    // Width and height of single texture block in pixels
+    let tblock_w = this.TEXTURE_BLOCK_WIDTH;
+    let tblock_h = this.TEXTURE_BLOCK_HEIGHT;
+    let tile_w = this.getTileWidth();
+    let tile_h = this.getTileHeight();
+
+    let tcoord_arr = [];
+    tcoord_arr.length = tile_w*tile_h;
+    let tidx_arr = [];
+    tidx_arr.length = tile_w*tile_h;
+
+    let pattern_data = this._patterns[tile_idx];
+    let rgb_data = [];
+    rgb_data.length = 3*tile_w*tile_h;
+
+    for(let y = 0; y < tile_h; y++) {
+      let tex_y = y%tblock_h;
+      let pattern_y = (y/tblock_h)|0;
+      for(let x = 0; x < tile_w; x++) {
+        let tex_x = x%tblock_w;
+        let pattern_x = (x/tblock_w)|0;
+        let tex_idx = pattern_data[this._pattern_w*pattern_y+pattern_x];
+        let tblock = tblocks[tex_idx];
+        rgb_data[3*(tile_w*y+x)] = tblock[3*(tblock_w*tex_y+tex_x)];
+        rgb_data[3*(tile_w*y+x)+1] = tblock[3*(tblock_w*tex_y+tex_x)+1];
+        rgb_data[3*(tile_w*y+x)+2] = tblock[3*(tblock_w*tex_y+tex_x)+2];
+
+        tidx_arr[tile_w*y+x] = tex_idx;
+        tcoord_arr[tile_w*y+x] = [tex_x, tex_y];
+      }
+    }
+
+//    console.log(tcoord_arr);
+//    console.log(tidx_arr);
+
+    return rgb_data;
+  },
+
+  _createTextureBlocks: function(texture) {
+    let tblock_w = this.TEXTURE_BLOCK_WIDTH;
+    let tblock_h = this.TEXTURE_BLOCK_HEIGHT;
+    let img_w = texture.width;
+    let img_h = img_w;
+
+    // Textures may contain several texture blocks in one image -
+    // here we determine positions of those blocks
+    let tblocks = [];
+    let num_blocks = ((img_w/tblock_w)*(img_h/tblock_h))|0;
+    for(let idx = 0; idx < num_blocks; idx++) {
+      let y = tblock_h*(((tblock_w*idx)/img_w)|0);
+      let x = (tblock_w*idx)%img_w;
+      tblocks.push(texture.getRGBData(x, y, tblock_w, tblock_h));
+    }
+    return tblocks;
   }
-}
-
-Tileset.prototype.tileSymbolToId = function(tile_symbol) {
-  return this._symbols.indexOf(tile_symbol);
-}
-
-Tileset.prototype.getActiveTileId = function() {
-  return this._active_id;
-}
-
-Tileset.prototype.setActiveTileId = function(tile_id) {
-  if(tile_id < this.numTiles() && tile_id >= 0) {
-    this._active_id = tile_id;
-  }
-}
+};
 
 
 /* Waypoint class
 */
-function Waypoint(x = 0, y = 0, radius = 0, speed = 0, checkpoint = true) {
-  this.checkpoint = checkpoint;
-  this.radius = radius;
-  this.speed = speed;
-  this.x = x;
-  this.y = y;
+function Waypoint(creator, x = 0, y = 0, radius = 0, speed = 0, checkpoint = true) {
+  this._creator = creator;
+
+  this._checkpoint = checkpoint;
+  this._radius = radius;
+  this._speed = speed;
+  this._x = x;
+  this._y = y;
 }
+
+Waypoint.prototype = {
+  get checkpoint() {
+    return this._checkpoint
+  },
+  set checkpoint(val) {
+    this._checkpoint = val;
+    this._notifyCreator();
+  },
+
+  get radius() {
+    return this._radius;
+  },
+  set radius(val) {
+    this._radius = val;
+    this._notifyCreator();
+  },
+
+  get speed() {
+    return this._speed;
+  },
+  set speed(val) {
+    this._speed = val;
+    this._notifyCreator();
+  },
+
+  get x() {
+    return this._x;
+  },
+  set x(val) {
+    this._x = val;
+    this._notifyCreator();
+  },
+
+  get y() {
+    return this._y;
+  },
+  set y(val) {
+    this._y = val;
+    this._notifyCreator();
+  },
+
+  _notifyCreator: function() {
+    this._creator.onWaypointUpdated();
+  }
+};
 
 
 /* Waypoints class
 */
 function Waypoints() {
-  console.log("Waypoints.constructor()");
+//  console.log("Waypoints.constructor()");
+
+  this._observers = [];
+
   this._active_waypoint = null;
   this._waypoints = [];
 }
 
-Waypoints.prototype.numWaypoints = function() {
-  return this._waypoints.length;
-}
+Waypoints.prototype = {
+  numWaypoints: function() {
+    return this._waypoints.length;
+  },
 
-Waypoints.prototype.getWaypoint = function(idx) {
-  if(idx >= 0 && idx < this._waypoints.length) {
-    return this._waypoints[idx];
-  }
-  return null;
-}
+  clearWaypoints: function() {
+    this._waypoints.length = 0;
 
-Waypoints.prototype.clearWaypoints = function() {
-  this._waypoints.length = 0;
-}
+    this._notifyObservers();
+  },
 
-Waypoints.prototype.addWaypoint = function() {
-  let idx = 0;
-  while(idx < this._waypoints.length) {
-    if(this._waypoints[idx] == this._active_waypoint) {
-      idx++;
-      break;
+  getWaypoint: function(idx) {
+    if(idx >= 0 && idx < this._waypoints.length) {
+      return this._waypoints[idx];
     }
-    idx++;
-  }
-  let new_wp = new Waypoint();
-  this._waypoints.splice(idx, 0, new_wp);
-  this._active_waypoint = new_wp;
-  return new_wp;
-}
+    return null;
+  },
 
-Waypoints.prototype.delWaypoint = function(idx) {
-  if(idx >= 0 && idx < this._waypoints.length) {
-    if(this._active_waypoint == this._waypoints[idx]) {
-      if(idx > 0) {
-        this._active_waypoint = this._waypoints[idx-1];
+  addWaypoint: function(idx) {
+    let new_wp = new Waypoint(this);
+    this._waypoints.splice(idx, 0, new_wp);
+
+    this._active_waypoint = new_wp;
+
+    this._notifyObservers();
+
+    return new_wp;
+  },
+
+//    let idx = 0;
+//    while(idx < this._waypoints.length) {
+//      if(this._waypoints[idx] == this._active_waypoint) {
+//        idx++;
+//        break;
+//      }
+//      idx++;
+//    }
+//    let new_wp = new Waypoint();
+//    this._waypoints.splice(idx, 0, new_wp);
+//    this._active_waypoint = new_wp;
+//
+//    this._notifyObservers();
+//
+//    return new_wp;
+//  },
+
+  delWaypoint: function(idx) {
+    if(idx >= 0 && idx < this._waypoints.length) {
+      if(this._active_waypoint == this._waypoints[idx]) {
+        if(idx > 0) {
+          this._active_waypoint = this._waypoints[idx-1];
+        }
+        else {
+          this._active_waypoint = (this._waypoints.length > 1) ? this._waypoints[idx+1] : null;
+        }
       }
-      else {
-        this._active_waypoint = (this._waypoints.length > 1) ? this._waypoints[idx+1] : null;
-      }
+      this._waypoints.splice(idx, 1);
+
+      this._notifyObservers();
     }
-    this._waypoints.splice(idx, 1);
+  },
+
+  getActiveWaypoint: function() {
+    return this._active_waypoint;
+  },
+
+  setActiveWaypoint: function(waypoint) {
+    this._active_waypoint = waypoint;
+    this._notifyObservers();
+  },
+
+  onWaypointUpdated: function() {
+    this._notifyObservers();
+  },
+
+  addObserver: function(observer) {
+    this._observers.push(observer);
+    observer.onWaypointsUpdated();
+  },
+
+  removeObserver: function(observer) {
+    let idx = this._observers.indexOf(observer);
+    if(idx >= 0) {
+      this._observers.splice(idx, 1);
+    }
+  },
+
+  _notifyObservers: function() {
+//    console.log("Billboards._notifyObservers()");
+    for(let idx = 0; idx < this._observers.length; idx++) {
+      this._observers[idx].onWaypointsUpdated();
+    }
   }
-}
-
-Waypoints.prototype.getActiveWaypoint = function() {
-  return this._active_waypoint;
-}
-
-Waypoints.prototype.setActiveWaypoint = function(waypoint) {
-  this._active_waypoint = waypoint;
-}
+};
 
 
-/* PgpEdit_Data class
+/* PgpEdit_View class (command invoker)
 */
-function PgpEdit_Data(settings) {
-  console.log("PgpEdit_Data.constructor()");
-  this.author = "";
-  this.billboards = new Billboards();
-  this.textures = new Textures(settings);
-  this.tilemap = new Tilemap();
-  this.tileset = new Tileset(settings.tileset)
-  this.trackname = "";
-  this.waypoints = new Waypoints();
+function PgpEdit_View(pgpedit_app) {
+//  console.log("PgpEdit_View.constructor()");
 
-  let billboards = settings.billboards;
-  for(let idx = 0; idx < billboards.length; idx++) {
-    let bboard_model = this.billboards.addBillboardModel();
-    bboard_model.name = billboards[idx].name;
-    bboard_model.color = billboards[idx].color;
-  }
-  this.billboards.setActiveModelIndex(0);
-  console.log("BilboardModels added: "+this.billboards.numBillboardModels());
+  this._pgpedit_app = pgpedit_app;
+  this._temp_canvas = document.createElement("canvas");
+  this._tilemap_canvas = document.getElementById("tilemap-canvas");
+  this._tileset_canvas = document.getElementById("tileset-canvas");
+  this._tilebrush_canvas = document.getElementById("tilebrush-canvas");
+  this._tilemap_image = null;
+  this._tile_images = [];
+  this._tilebrush = {width: 1, height: 1, tile_data: [0]};
+  this._tilebrush_lastpos = null;
+  this._prop_bindings = new Map();
+  this._tileset_selection_rect = {x: 0, y: 0, w: 0, h: 0};
+  this._tileset_mousedown_flag = false;
+  this._tilemap_mousedown_flag = false;
+  this._tilemap_selection_started = false;
+  this._mode = "TILES";
+  this._tilemap_updated_rects = [];
 
-  this.tilemap.setWidth(32);
-  this.tilemap.setHeight(32);
+  this._billboard_grabbed = false;
+  this._billboard_grab_x = 0;
+  this._billboard_grab_y = 0;
+  this._billboard_move_op = null;
+
+  this._waypoint_grabbed = false;
+  this._waypoint_grab_x = 0;
+  this._waypoint_grab_y = 0;
+  this._waypoint_move_op = null;
+
+  this._tilemap_canvas_dirty = false;
+  this._billboards_dirty = false;
+  this._waypoints_dirty = false;
+  this._tilebrush_cursor_visible = false;
+  this._box_select = {x1: 0, y1: 0, x2: 0, y2: 0};
+
+  let img_w = this._TILE_SIZE*this._pgpedit_app.track_tiles.width;
+  let img_h = this._TILE_SIZE*this._pgpedit_app.track_tiles.height;
+  this._tilemap_canvas.width = img_w
+  this._tilemap_canvas.height = img_h;
+  let ctx = this._tilemap_canvas.getContext("2d");
+  this._tilemap_image = ctx.getImageData(0, 0, img_w, img_h);
+  
 }
+PgpEdit_View.prototype = {
+  _TILE_SIZE: 32,
+  _TILESET_ROWLEN: 5,
+  _GRID_COLOR: "rgb(48, 48, 48)",
+  _SELECTION_COLOR: "rgba(255, 128, 128, 0.3)",
+  _TEX_IMAGE_W: 64,
+  _TEX_IMAGE_H: 64,
+  _BBRD_MAX_NUM: 16,
+  _BBRD_RECT_SIZE: 10,
+  _WP_MAX_NUM: 30,
+  _WP_LINE_COLOR: "rgb(255,255,255)",
+  _WP_RIM_COLOR: "hsl(200,50%,50%)",
+  _WP_TARGET_COLOR: "hsl(180,75%,50%)",
+  _WP_TARGET_RECT_SIZE: 10,
 
+  get mode() {
+    return this._mode;   // "TILES", "BILLBOARDS", "WAYPOINTS"
+  },
 
+  init: function(settings) {
+//    console.log("PgpEdit_View.init():");
 
-/* ================
- * PgpEditUI class:
- * ================
-*/
-function PgpEditUI(pgpedit_data) {
-  console.log("PgpEditUI.constructor()");
+    document.getElementById("mode-select").value = "tiles-tab";
+    this._populateBillboardDroplist(settings);
 
-  this.tileset_canvas = document.getElementById("tileset-canvas");
-  this.active_tile_ctx = document.getElementById("brushtile").getContext("2d");
-  this.tilemap_canvas = document.getElementById("tilemap");
-  this.tilemap_imgdata = null;
-  this.mousedownFlag = false;
-  this.edit_mode = this.EditModeEnum.TILES;
-  this.billboard_grabbed = false;
-  this.billboard_grabx = 0;
-  this.billboard_graby = 0;
-  this.waypoint_grabbed = false;
-  this.waypoint_grabx = 0;
-  this.waypoint_graby = 0;
-  this._pgpedit_data = pgpedit_data;
-  this.tileset_images = [];
-  this.sidepanel_view = null;
-  this.tile_templates = [];
-  this._texture_rects = new Map();
+    this._tilemap_canvas.addEventListener("mousedown", this);
+    this._tilemap_canvas.addEventListener("mousemove", this);
+    this._tilemap_canvas.addEventListener("mouseout", this);
 
-  this._texture_rects.set("tex01",{x: 0, y: 0, w: 16, h: 24});
-  this._texture_rects.set("tex02",{x: 16, y: 0, w: 8, h: 12});
-  this._texture_rects.set("tex03",{x: 16, y: 12, w: 8, h: 12});
-  this._texture_rects.set("tex04",{x: 0, y: 24, w: 16, h: 24});
-  this._texture_rects.set("tex05",{x: 16, y: 24, w: 16, h: 24});
-  this._texture_rects.set("bkground",{x: 0, y: 48, w: 32, h: 16});
-  this._texture_rects.set("sprite01",{x: 32, y: 0, w: 32, h: 32});
-  this._texture_rects.set("sprite02",{x: 32, y: 32, w: 32, h: 32});
-}
+    window.addEventListener("mouseup", this);
+    window.addEventListener("keypress", this);
 
-PgpEditUI.prototype.TILE_SIZE = 32;
-PgpEditUI.prototype.GRID_COLOR = "rgb(80, 80, 80)";
-PgpEditUI.prototype.HIGHLIGHT_COLOR = "rgba(255, 128, 128, 0.5)";
-PgpEditUI.prototype.BBRD_MAX_NUM = 16;
-PgpEditUI.prototype.BBRD_SELECTED_COLOR = "hsl(180,100%,75%)";
-PgpEditUI.prototype.BBRD_RECT_SIZE = 10;
-PgpEditUI.prototype.WP_MAX_NUM = 30;
-PgpEditUI.prototype.WP_LINE_COLOR = "rgb(255,255,255)";
-PgpEditUI.prototype.WP_RIM_COLOR = "hsl(200,50%,50%)";
-PgpEditUI.prototype.WP_RIM_SELECTED_COLOR = "hsl(200,75%,75%)";
-PgpEditUI.prototype.WP_TARGET_COLOR = "hsl(180,75%,50%)";
-PgpEditUI.prototype.WP_TARGET_SELECTED_COLOR = "hsl(180,100%,75%)";
-PgpEditUI.prototype.WP_TARGET_RECT_SIZE = 10;
-PgpEditUI.prototype.WP_RADIUS = 128;
-PgpEditUI.prototype.WP_SPEED = 100;
+    document.getElementById("mode-select").addEventListener("change", this);
+    document.getElementById("billboard-droplist").addEventListener("change", this);
+    document.getElementById("loadtex-fileinput").addEventListener("change", this);
+    document.getElementById("radius-textinput").addEventListener("change", this);
+    document.getElementById("speed-textinput").addEventListener("change", this);
+    document.getElementById("checkpoint-boolinput").addEventListener("change", this);
+    document.getElementById("loadtrack-fileinput").addEventListener("change", this);
+    document.getElementById("savetrack-button").addEventListener("click", this);
 
-PgpEditUI.prototype.EditModeEnum = {TILES: 1, BILLBOARDS: 2, WAYPOINTS: 3};
+    this.bindProperty(this._pgpedit_app.trackname, "trackname-textinput");
+    this.bindProperty(this._pgpedit_app.author, "author-textinput");
+    this._pgpedit_app.track_tiles.addObserver(this);
+    this._pgpedit_app.billboards.addObserver(this);
+    this._pgpedit_app.waypoints.addObserver(this);
 
-PgpEditUI.prototype.init = function(settings) {
-  console.log("PgpEditUI.init()");
+    this.updateTileset();
+    this._drawTileset();
+    this._drawGrid(this._tileset_canvas, this._TILE_SIZE, this._GRID_COLOR);
+    this._drawTilebrushView();
 
-  document.getElementById("mode-select").value = "tiles-tab";
+    this._drawTilemap();
 
-  this.populateBillboardDroplist(settings);
+    this._tileset_canvas.addEventListener("mousedown", this);
+    this._tileset_canvas.addEventListener("mousemove", this);
+  },
 
-  this.tileset_canvas.addEventListener("mousedown", this);
-  this.tilemap_canvas.addEventListener("mousemove", this);
-  this.tilemap_canvas.addEventListener("mouseout", this);
-  this.tilemap_canvas.addEventListener("mousedown", this);
-  window.addEventListener("mouseup", this);
+  handleEvent: function(evt) {
+//    console.log("{event.target.id:\""+evt.target.id+"\", event.type:\""+evt.type+"\"}");
 
-  document.getElementById("mode-select").addEventListener("change", this);
-  document.getElementById("billboard-droplist").addEventListener("change", this);
-  document.getElementById("trackname-text").addEventListener("change", this);
-  document.getElementById("author-text").addEventListener("change", this);
-  document.getElementById("radius").addEventListener("change", this);
-  document.getElementById("speed").addEventListener("change", this);
-  document.getElementById("checkpoint").addEventListener("change", this);
-
-  document.getElementById("loadtex-file").addEventListener("change", this);
-  document.getElementById("import").addEventListener("change", this);
-  document.getElementById("export").addEventListener("click", this);
-
-  let idx_arrays = settings.tileset.template.index_arrays;
-  let num_tiles = idx_arrays.length;
-  this.tile_templates.length = num_tiles;
-  for(idx = 0; idx < num_tiles; idx++) {
-    this.tile_templates[idx] = Array.from(atob(idx_arrays[idx]), (x) => x.charCodeAt(0));
-  }
-  this.createTilesetImages();
-  this.updateTilesetImages(this._pgpedit_data.tileset);
-
-  this.tileset_canvas.width = 4*this.TILE_SIZE;
-  this.tileset_canvas.height = 5*this.TILE_SIZE;
-  this.drawTileset();
-
-  this.active_tile_ctx.canvas.width = this.TILE_SIZE;
-  this.active_tile_ctx.canvas.height = this.TILE_SIZE;
-  this.drawActiveTile();
-
-  this.tilemap_canvas.width = this._pgpedit_data.tilemap.getWidth()*this.TILE_SIZE;
-  this.tilemap_canvas.height = this._pgpedit_data.tilemap.getHeight()*this.TILE_SIZE;
-  this.drawTilemap();
-
-  this.drawGrid(this.tilemap_canvas.getContext("2d"));
-
-  document.getElementById("trackname-text").value = this._pgpedit_data.trackname;
-  document.getElementById("author-text").value = this._pgpedit_data.author;
-}
-
-PgpEditUI.prototype.populateBillboardDroplist = function(settings) {
-  let droplist = document.getElementById("billboard-droplist");
-  while(droplist.length > 0) {
-    droplist.remove(0);
-  }
-
-  let billboards = settings.billboards;
-  for(let idx = 0; idx < billboards.length; idx++) {
-    let opt = document.createElement("option");
-    //opt.value = "billboard."+idx;
-    opt.innerHTML = billboards[idx].name;
-    droplist.appendChild(opt);
-  }
-}
-
-PgpEditUI.prototype.createTilesetImages = function() {
-  let minitile_imgs = [];
-  let idx_table = [{x: 0, y: 16}, {x: 4, y: 16}, {x: 0, y: 20}, {x: 4, y: 20}];
-
-  let image = this._pgpedit_data.textures.getTexture(0).image;
-  for(let idx = 0; idx < 4; idx++) {
-    minitile_imgs.push(this.minitileFromRGBImage(image, idx_table[idx].x, idx_table[idx].y));
-  }
-
-  image = this._pgpedit_data.textures.getTexture(1).image;
-  minitile_imgs.push(this.minitileFromRGBImage(image, 0, 8));
-
-  image = this._pgpedit_data.textures.getTexture(2).image;
-  minitile_imgs.push(this.minitileFromRGBImage(image, 0, 8));
-
-  image = this._pgpedit_data.textures.getTexture(3).image;
-  for(let idx = 0; idx < 4; idx++) {
-    minitile_imgs.push(this.minitileFromRGBImage(image, idx_table[idx].x, idx_table[idx].y));
-  }
-
-  image = this._pgpedit_data.textures.getTexture(4).image;
-  for(let idx = 0; idx < 4; idx++) {
-    minitile_imgs.push(this.minitileFromRGBImage(image, idx_table[idx].x, idx_table[idx].y));
-  }
-
-  for(let tile_idx = 0; tile_idx < this.tile_templates.length; tile_idx++) {
-    let tile_tmpl = this.tile_templates[tile_idx];
-    let target_data = [];
-    target_data.length = 3*this.TILE_SIZE*this.TILE_SIZE;
-    let target_w = this.TILE_SIZE;
-    let minitile_size = 4;
-    for(let target_idx = 0; target_idx < this.TILE_SIZE*this.TILE_SIZE; target_idx++) {
-      let tmpl_item_idx = target_idx/(this.TILE_SIZE*minitile_size)|0;
-      tmpl_item_idx *= this.TILE_SIZE/minitile_size;
-      tmpl_item_idx += ((target_idx%this.TILE_SIZE)/minitile_size)|0;
-      let minitile_idx = tile_tmpl[tmpl_item_idx];
-
-      let src_idx = target_idx%minitile_size;
-      src_idx += minitile_size*(((target_idx/this.TILE_SIZE)|0)%minitile_size);
-      
-      target_data[3*target_idx+0] = minitile_imgs[minitile_idx].data[4*src_idx+0];
-      target_data[3*target_idx+1] = minitile_imgs[minitile_idx].data[4*src_idx+1];
-      target_data[3*target_idx+2] = minitile_imgs[minitile_idx].data[4*src_idx+2];
+    if(evt.type == "mouseup" || evt.target.id == "tileset-canvas") {
+      this._handleTilesetCanvasEvent(evt);
     }
-    this._pgpedit_data.tileset.setTileImageData(tile_idx, target_data);
-  }
-}
-
-PgpEditUI.prototype.updateTilesetImages = function(tileset) {
-  console.log("updateTilesetImages()");
-  let ctx = document.getElementById("tileset-canvas").getContext("2d");
-
-  this.tileset_images.length = tileset.numTiles();
-  let tilesize = tileset.getTileSize();
-  for(let idx=0; idx < tileset.numTiles(); idx++) {
-    this.tileset_images[idx] = ctx.createImageData(tilesize, tilesize);
-    let target_data = this.tileset_images[idx].data;
-    let src_data = tileset.getTileImageData(idx);
-    for(let p_idx=0; p_idx<tilesize*tilesize; p_idx++) {
-      target_data[p_idx*4] = src_data[p_idx*3];
-      target_data[p_idx*4+1] = src_data[p_idx*3+1];
-      target_data[p_idx*4+2] = src_data[p_idx*3+2];
-      target_data[p_idx*4+3] = 255;
+    if(evt.type == "mouseup" || evt.target.id == "tilemap-canvas") {
+      this._handleTilemapCanvasEvent(evt);
     }
-  }
-}
 
-PgpEditUI.prototype.minitileFromRGBImage = function(image, sx, sy) {
-  let ctx = document.getElementById("tileset-canvas").getContext("2d");
-  let tile_img = ctx.createImageData(4, 4);
-
-  let img_w = image.width;
-  for(let y = 0; y < 4; y++) {
-    let img_offset = img_w*(sy+y)+sx;
-    let tile_offset = tile_img.width*y;
-    for(let x = 0; x < 4; x++) {
-      tile_img.data[4*(tile_img.width*y+x)+0] = image.data[3*(img_w*(sy+y)+sx+x)+0];
-      tile_img.data[4*(tile_img.width*y+x)+1] = image.data[3*(img_w*(sy+y)+sx+x)+1];
-      tile_img.data[4*(tile_img.width*y+x)+2] = image.data[3*(img_w*(sy+y)+sx+x)+2];
-      tile_img.data[4*(tile_img.width*y+x)+3] = 255;
-    }
-  }
-  return tile_img;
-}
-
-PgpEditUI.prototype.handleEvent = function(evt) {
-  console.log("{event.target.id:\""+evt.target.id+"\", event.type:\""+evt.type+"\"}");
-  if(evt.type == "mousemove") {
-    if(evt.target.id == "tilemap") {
-      let coord = this.tileCoordinatesFromMouse(this.tilemap_canvas, evt);
-      this.revertTilemapCanvas();
-      if(this.edit_mode == this.EditModeEnum.TILES) {
-        if(this.mousedownFlag) {
-          let tile_id = this._pgpedit_data.tileset.getActiveTileId();
-          this.drawTile(tile_id, coord.col, coord.row);
-        }
-        this.drawTileHighlight(coord.col, coord.row);
-        this.drawGrid(this.tilemap_canvas.getContext("2d"));
+    if(evt.type == "change") {
+      let dom_id = evt.target.id;
+      if(dom_id == "mode-select") {
+        this._onSelectMode(evt);
       }
-      else if(this.edit_mode == this.EditModeEnum.BILLBOARDS) {
-        if(this._pgpedit_data.billboards.numBillboardObjects() > 0) {
-          if(this.billboard_grabbed) {
-            let canvas_h = this.tilemap_canvas.height;
-            let rect = this.tilemap_canvas.getBoundingClientRect();
-            let mousex = (evt.clientX-rect.left)|0;
-            let mousey = (evt.clientY-rect.top)|0;
-
-            let billboard = this._pgpedit_data.billboards.getActiveBillboardObject();
-            billboard.x = (mousex-this.billboard_grabx)*2;
-            billboard.y = (canvas_h-(mousey-this.billboard_graby))*2;
+      else if(dom_id == "loadtex-fileinput") {
+        this._onLoadTextures(evt);
+      }
+      else if(dom_id == "loadtrack-fileinput") {
+        this._onLoadTrack(evt);
+      }
+      else if(dom_id == "billboard-droplist") {
+        let idx = evt.target.selectedIndex;
+        this._pgpedit_app.billboards.setActiveModelIndex(idx);
+        this._drawBillboardsPanel();
+      }
+      else if(dom_id == "radius-textinput" || dom_id == "speed-textinput" || dom_id == "checkpoint-boolinput") {
+        if(this._pgpedit_app.waypoints.numWaypoints() > 0) {
+          let radius = parseInt(document.getElementById("radius-textinput").value);
+          if(radius > 1024) {
+            radius = 1024;
           }
-          this.drawBillboards();
-        }
-      }
-      else if(this.edit_mode == this.EditModeEnum.WAYPOINTS) {
-        if(this._pgpedit_data.waypoints.numWaypoints() > 0) {
-          if(this.waypoint_grabbed) {
-            let canvas_h = this.tilemap_canvas.height;
-            let rect = this.tilemap_canvas.getBoundingClientRect();
-            let mousex = (evt.clientX-rect.left)|0;
-            let mousey = (evt.clientY-rect.top)|0;
-
-            let waypoint = this._pgpedit_data.waypoints.getActiveWaypoint();
-            waypoint.x = (mousex-this.waypoint_grabx)*2;
-            waypoint.y = (canvas_h-(mousey-this.waypoint_graby))*2;
+          else if(radius < 0) {
+            radius = 0;
           }
-          this.drawWaypoints();
+
+          let speed = parseInt(document.getElementById("speed-textinput").value);
+          if(speed > 100) {
+            speed = 100;
+          }
+          else if(speed < 0) {
+            speed = 0;
+          }
+
+          let checkpoint = document.getElementById("checkpoint-boolinput").checked;
+
+          let op = new setWaypointProperties_Operator(radius, speed, checkpoint, "WAYPOINTS");
+          this._pgpedit_app.executeOperator(op);
         }
-      }
-    }
-  }
-  else if(evt.type == "mouseout") {
-    this.onTilemapMouseout(evt);
-  }
-  else if(evt.type == "mousedown") {
-    if(evt.target.id == "tilemap") {
-      this.onTilemapMousedown(evt);
-    }
-    if(evt.target.id == "tileset-canvas") {
-      this.onTilesetMouseDown(evt);
-    }
-  }
-  else if(evt.type == "mouseup") {
-    this.mousedownFlag = false;
-    this.billboard_grabbed = false;
-    this.waypoint_grabbed = false;
-  }
-  else if(evt.type == "click") {
-    if(evt.target.id == "export") {
-      this.onExportButtonClick(evt);
-    }
-  }
-  else if(evt.type == "change") {
-    this.onPropertyChange(evt);
-  }
-}
-
-PgpEditUI.prototype.onTilemapMousedown = function(evt) {
-  this.mousedownFlag = true;
-
-  this.revertTilemapCanvas();
-
-  if(this.edit_mode == this.EditModeEnum.TILES) {
-    let coord = this.tileCoordinatesFromMouse(this.tilemap_canvas, evt);
-    let tile_id = this._pgpedit_data.tileset.getActiveTileId();
-    this.drawTile(tile_id, coord.col, coord.row);
-    this.drawGrid(this.tilemap_canvas.getContext("2d"));
-  }
-  else if(this.edit_mode == this.EditModeEnum.BILLBOARDS) {
-    let canvas_h = this.tilemap_canvas.height;
-    let rect = this.tilemap_canvas.getBoundingClientRect();
-    let mousex = (evt.clientX-rect.left)|0;
-    let mousey = (evt.clientY-rect.top)|0;
-    if(document.getElementById("add_billboard-tool").checked) {
-      if(this._pgpedit_data.billboards.numBillboardObjects() < this.BBRD_MAX_NUM) {
-        let billboard = this._pgpedit_data.billboards.addBillboardObject();
-        billboard.x = mousex*2;
-        billboard.y = (canvas_h-mousey)*2;
-
-        this.billboard_grabbed = true;
-        this.billboard_grabx = 0;
-        this.billboard_graby = 0;
+        else {
+          document.getElementById("radius-textinput").value = "";
+          document.getElementById("speed-textinput").value = "";
+          document.getElementById("checkpoint-boolinput").checked = false;
+        }
       }
       else {
-        alert("Maximum number of billboards: "+this.BBRD_MAX_NUM);
-      }
-    }
-    else {
-      console.log("Select/delete billboard");
-      if(this._pgpedit_data.billboards.numBillboardObjects() > 0) {
-        for(let idx = this._pgpedit_data.billboards.numBillboardObjects()-1; idx >= 0; idx--) {
-          let billboard = this._pgpedit_data.billboards.getBillboardObject(idx);
-          let offs_x = mousex-(billboard.x/2);
-          let offs_y = mousey-(canvas_h-billboard.y/2);
-          let dist = Math.max(Math.abs(offs_x), Math.abs(offs_y));
-          console.log("dist: "+dist);
-          if(dist <= this.BBRD_RECT_SIZE/2) {
-            if(document.getElementById("sel_billboard-tool").checked) {
-              this._pgpedit_data.billboards.setActiveBillboardObject(billboard);
-              this.billboard_grabbed = true;
-              this.billboard_grabx = offs_x;
-              this.billboard_graby = offs_y;
-            }
-            else if(document.getElementById("del_billboard-tool").checked) {
-              this._pgpedit_data.billboards.delBillboardObject(idx);
-            }
-            break;
-          }
+        if(this._prop_bindings.has(dom_id) && dom_id.indexOf("-textinput") >= 0) {
+          let prop = this._prop_bindings.get(dom_id);
+          let value = document.getElementById(dom_id).value;
+          let op = new setStringPropertyValue_Operator(prop, value);
+          this._pgpedit_app.executeOperator(op);
         }
       }
     }
-    this.drawBillboards();
-  }
-  else if(this.edit_mode == this.EditModeEnum.WAYPOINTS) {
-    let canvas_h = this.tilemap_canvas.height;
-    let rect = this.tilemap_canvas.getBoundingClientRect();
-    let mousex = (evt.clientX-rect.left)|0;
-    let mousey = (evt.clientY-rect.top)|0;
-    if(document.getElementById("add-tool").checked) {
-      if(this._pgpedit_data.waypoints.numWaypoints() < this.WP_MAX_NUM) {
-        let waypoint = this._pgpedit_data.waypoints.addWaypoint();
-        waypoint.x = mousex*2;
-        waypoint.y = (canvas_h-mousey)*2;
-        waypoint.radius = this.WP_RADIUS;
-        waypoint.speed = this.WP_SPEED;
-        waypoint.checkpont = true;
-
-        this.waypoint_grabbed = true;
-        this.waypoint_grabx = 0;
-        this.waypoint_graby = 0;
+    else if(evt.type == "keypress") {
+      if(evt.ctrlKey && evt.charCode == "z".charCodeAt(0)) {
+        this._pgpedit_app.undo();
       }
-      else {
-        alert("Maximum number of waypoints: "+this.WP_MAX_NUM);
+      if(evt.ctrlKey && evt.charCode == "Z".charCodeAt(0)) {
+        this._pgpedit_app.redo();
       }
     }
+    else if(evt.type == "click") {
+      if(evt.target.id == "savetrack-button") {
+        let op = new ExportAsZip_Operator();
+        this._pgpedit_app.executeOperator(op);
+      }
+    }
+    else if(evt.type == "load") {
+//      console.assert(false, "Assertion failed");
+      let op = new ImportTrack_Operator(evt.target.result, "TILES");
+      this._pgpedit_app.executeOperator(op);
+      op = new ImportBillboards_Operator(evt.target.result, "BILLBOARDS");
+      this._pgpedit_app.executeOperator(op);
+      op = new ImportWaypoints_Operator(evt.target.result, "WAYPOINTS");
+      this._pgpedit_app.executeOperator(op);
+    }
+
+    if(this._tilemap_canvas_dirty) {
+      this._drawTilemap(evt);
+      this._tilemap_canvas_dirty = false;
+    }
+  },
+
+  _drawBillboardsPanel: function() {
+//    console.log("PgpEditUI._drawBillboardsPanel()");
+
+    let bb_idx = this._pgpedit_app.billboards.getActiveModelIndex();
+    let billboard_tex_name = this._pgpedit_app.billboards.getBillboardModel(bb_idx).texture;
+
+    let tex = null;
+    for(let idx = 0; idx < this._pgpedit_app.textures.length; idx++) {
+//      console.log([this._pgpedit_app.textures[idx].name, billboard_tex_name]);
+      if(this._pgpedit_app.textures[idx].name == billboard_tex_name) {
+        tex = this._pgpedit_app.textures[idx];
+      }
+    }
+
+    let canvas = document.getElementById("billboard-canvas");
+//    let tex = this._pgpedit_app.textures[6+idx];
+    if(tex != null) {
+      canvas.width = tex.width;
+      canvas.height = tex.height;
+      let rgb_data = tex.getRGBData(0, 0, tex.width, tex.height);
+      let ctx = canvas.getContext("2d");
+      let billboard_img = ctx.createImageData(tex.width, tex.height);
+      for(let idx = 0; idx < tex.width*tex.height; idx++) {
+        billboard_img.data[4*idx+0] = rgb_data[3*idx+0];
+        billboard_img.data[4*idx+1] = rgb_data[3*idx+1];
+        billboard_img.data[4*idx+2] = rgb_data[3*idx+2];
+        billboard_img.data[4*idx+3] = 255;
+      }
+      ctx.putImageData(billboard_img, 0, 0);
+    }
     else {
-      if(0 < this._pgpedit_data.waypoints.numWaypoints()) {
-        for(let idx = this._pgpedit_data.waypoints.numWaypoints()-1; idx >= 0; idx--) {
-          let waypoint = this._pgpedit_data.waypoints.getWaypoint(idx);
-          let offs_x = mousex-(waypoint.x/2);
-          let offs_y = mousey-(canvas_h-waypoint.y/2);
-          let dist_sq = offs_x*offs_x+offs_y*offs_y;
-          if(dist_sq <= waypoint.radius*waypoint.radius/4) {
-            if(document.getElementById("select-tool").checked) {
-              this._pgpedit_data.waypoints.setActiveWaypoint(waypoint);
-              this.waypoint_grabbed = true;
-              this.waypoint_grabx = offs_x;
-              this.waypoint_graby = offs_y;
-            }
-            else if(document.getElementById("del-tool").checked) {
-              this._pgpedit_data.waypoints.delWaypoint(idx);
-            }
-            break;
-          }
+      canvas.width = 32;
+      canvas.height = 32;
+    }
+
+    document.getElementById("billboard-droplist").selectedIndex = bb_idx;
+    let bboard_model = this._pgpedit_app.billboards.getBillboardModel(bb_idx);
+    document.getElementById("billboard-color").style.backgroundColor = bboard_model.color;
+  },
+
+  bindProperty: function(property, dom_id) {
+    this._prop_bindings.set(dom_id, property);
+    property.addObserver(this);
+
+    if(dom_id.indexOf("-textinput") >= 0) {
+      let element = document.getElementById(dom_id);
+      element.maxLength = property.maxlen;
+      element.addEventListener("change", this);
+    }
+  },
+
+  onPropertyUpdated: function(property) {
+    // Find dom_id that is connected to this property
+    let dom_id = null;
+    for(let [key, value] of this._prop_bindings) {
+      if(value == property) {
+        dom_id = key;
+        break;
+      }
+    }
+
+    if(dom_id.indexOf("-textinput") >= 0) {
+      document.getElementById(dom_id).value = property.value;
+    }
+  },
+
+  onTilemapUpdated: function(tilemap, x, y, width, height) {
+//    console.log("PgpEdit_View.onTilemapUpdated()");
+
+    this._tilemap_updated_rects.push({x: x, y: y, w: width, h: height});
+    this._tilemap_canvas_dirty = true;
+  },
+
+  onBillboardsUpdated: function() {
+//    console.log("PgpEdit_View.onBillboardsUpdated()");
+
+    this._tilemap_canvas_dirty = true;
+  },
+
+  onWaypointsUpdated: function() {
+//    console.log("PgpEdit_View.onWaypointsUpdated()");
+
+    this._tilemap_canvas_dirty = true;
+
+    if(this._pgpedit_app.waypoints.numWaypoints() > 0) {
+      let wp = this._pgpedit_app.waypoints.getActiveWaypoint();
+      if(wp != null) {
+        document.getElementById("radius-textinput").value = wp.radius;
+        document.getElementById("speed-textinput").value = wp.speed;
+        document.getElementById("checkpoint-boolinput").checked = wp.checkpoint;
+      }
+    }
+  },
+
+  updateTileset: function() {
+//    console.log("PgpEdit.updateTileset()");
+
+    let tile_w = this._pgpedit_app.tileset.getTileWidth();
+    let tile_h = this._pgpedit_app.tileset.getTileHeight();
+    let num_tiles = this._pgpedit_app.tileset.numTiles();
+
+    this._tile_images.length = num_tiles;
+
+    if(this._temp_canvas.width < Math.max(tile_w, this._TILE_SIZE)) {
+      this._temp_canvas.width = Math.max(tile_w, this._TILE_SIZE);
+    }
+    if(this._temp_canvas.height < Math.max(tile_h, this._TILE_SIZE)) {
+      this._temp_canvas.height = Math.max(tile_h, this._TILE_SIZE);
+    }
+    let temp_ctx = this._temp_canvas.getContext("2d");
+    let tile_img = temp_ctx.getImageData(0, 0, tile_w, tile_h);
+
+    for(let tile_idx = 0; tile_idx < num_tiles; tile_idx++) {
+      let rgb_data = this._pgpedit_app.tileset.getTileRGBData(tile_idx);
+      for(let idx = 0; idx < tile_w*tile_h; idx++) {
+        tile_img.data[4*idx] = rgb_data[3*idx];
+        tile_img.data[4*idx+1] = rgb_data[3*idx+1];
+        tile_img.data[4*idx+2] = rgb_data[3*idx+2];
+        tile_img.data[4*idx+3] = 255;
+      }
+      // Scale image to tile size 
+      temp_ctx.putImageData(tile_img, 0, 0);
+      temp_ctx.drawImage(this._temp_canvas, 0, 0, tile_w, tile_h, 
+        0, 0, this._TILE_SIZE, this._TILE_SIZE);
+      // Save scaled tile image to an array
+      this._tile_images[tile_idx] = 
+        temp_ctx.getImageData(0, 0, this._TILE_SIZE, this._TILE_SIZE);
+    }
+//    console.log(this._tile_images);
+  },
+
+  _drawTilemap: function(evt) {
+//    console.log("PgpEdit_View._drawTilemap()");
+
+    let ctx = this._tilemap_canvas.getContext("2d");
+    ctx.putImageData(this._tilemap_image, 0, 0);
+    this._drawUpdatedTiles(this._tilemap_canvas);
+
+    if(this._mode == "TILES") {
+//      if(this._tilemap_canvas_dirty) {
+//        this._tilemap_canvas_dirty = false;
+
+        if(this._tilemap_mousedown_flag && this._tilemap_selection_started) {
+          let rect = this._tileset_selection_rect;
+          this._drawBoxSelect(this._tilemap_canvas, rect.x, rect.y, rect.w, rect.h);
         }
-      }
+        if(this._tilebrush_cursor_visible) {
+          let canvas = this._tilemap_canvas;
+          let mouse = this._canvasCoordinatesFromMouse(canvas, evt);
+          let x = mouse.x+this._TILE_SIZE*0.5*(this._tilebrush.width+1);
+          x = this._TILE_SIZE*(((x/this._TILE_SIZE)|0)-this._tilebrush.width);
+          let y = mouse.y+this._TILE_SIZE*0.5*(this._tilebrush.height+1);
+          y = this._TILE_SIZE*(((y/this._TILE_SIZE)|0)-this._tilebrush.height);
+          let brush = this._tilebrush;
+          this._drawTileData(brush.width, brush.height, brush.tile_data, canvas, x, y);
+        }
+//      }
+
+      this._drawGrid(this._tilemap_canvas, this._TILE_SIZE, this._GRID_COLOR);
     }
-    this.drawWaypoints();
-
-    if(this._pgpedit_data.waypoints.numWaypoints() > 0) {
-      let waypoint = this._pgpedit_data.waypoints.getActiveWaypoint();
-      document.getElementById("radius").value = waypoint.radius;
-      document.getElementById("speed").value = waypoint.speed;
-      document.getElementById("checkpoint").checked = waypoint.checkpoint;
+    else if(this._mode == "BILLBOARDS") {
+//      if(this._billboards_dirty) {
+        this._drawBillboards();
+//        this._billboards_dirty = false;
+//      }
     }
-    else {
-      document.getElementById("radius").value = "";
-      document.getElementById("speed").value = "";
-      document.getElementById("checkpoint").checked = false;
+    else if(this._mode == "WAYPOINTS") {
+      this._drawWaypoints();
     }
-  }
-}
+  },
 
-PgpEditUI.prototype.setEditMode = function(mode) {
-  this.edit_mode = mode;
+  _drawBoxSelect: function(canvas, x, y, w, h) {
+//    console.log("PgpEdit_View._drawBoxSelect()");
+//    console.log([x, y, w, h]);
 
-  console.log("setEditMode("+mode+")");
+    let coords = this._rectangleToTileCoordinates(x, y, w, h);
+    x = this._TILE_SIZE*coords.x1;
+    y = this._TILE_SIZE*coords.y1;
+    w = this._TILE_SIZE*(1+coords.x2-coords.x1);
+    h = this._TILE_SIZE*(1+coords.y2-coords.y1);
 
-  this.revertTilemapCanvas();
-  if(this.edit_mode == this.EditModeEnum.TILES) {
-    this.drawGrid(this.tilemap_canvas.getContext("2d"));
-  }
-  else if(this.edit_mode == this.EditModeEnum.BILLBOARDS) {
-    if(this._pgpedit_data.billboards.numBillboardObjects() > 0) {
-      this.drawBillboards();
-    }
-    this.updateSidepanelBillboardArea();
-  }
-  else if(this.edit_mode == this.EditModeEnum.WAYPOINTS) {
-    if(this._pgpedit_data.waypoints.numWaypoints() > 0) {
-      this.drawWaypoints();
-
-      let waypoint = this._pgpedit_data.waypoints.getActiveWaypoint();
-      document.getElementById("radius").value = waypoint.radius;
-      document.getElementById("speed").value = waypoint.speed;
-      document.getElementById("checkpoint").checked = waypoint.checkpoint;
-    }
-    else {
-      document.getElementById("radius").value = "";
-      document.getElementById("speed").value = "";
-      document.getElementById("checkpoint").checked = false;
-    }
-  }
-}
-
-PgpEditUI.prototype.updateSidepanelBillboardArea = function() {
-  console.log("PgpEditUI.updateSidepanelBillboardArea()");
-
-  let canvas = document.getElementById("billboard-canvas");
-  let idx = this._pgpedit_data.billboards.getActiveModelIndex();
-  let tex = this._pgpedit_data.textures.getTexture(6+idx);
-  if(tex != null) {
-    let tex_w = tex.image.width;
-    let tex_h = tex.image.height;
-    canvas.width = tex_w;
-    canvas.height = tex_h;
     let ctx = canvas.getContext("2d");
-    let billboard_img = ctx.createImageData(tex_w, tex_h);
-    for(let idx = 0; idx < tex_w*tex_h; idx++) {
-      billboard_img.data[4*idx+0] = tex.image.data[3*idx+0];
-      billboard_img.data[4*idx+1] = tex.image.data[3*idx+1];
-      billboard_img.data[4*idx+2] = tex.image.data[3*idx+2];
-      billboard_img.data[4*idx+3] = 255;
+    ctx.fillStyle = this._SELECTION_COLOR;
+    ctx.fillRect(x, y, w, h);
+  },
+
+  _drawUpdatedTiles: function(canvas) {
+//    console.log("PgpEdit_View._drawUpdatedTiles()");
+
+    let start_ms = Date.now();
+
+    let ctx = canvas.getContext("2d");
+    let tilemap = this._pgpedit_app.track_tiles;
+    for(let rect_idx = 0; rect_idx < this._tilemap_updated_rects.length; rect_idx++) {
+      let rect = this._tilemap_updated_rects[rect_idx];
+      let tile_data = tilemap.getTileData(rect.x, rect.y, rect.w, rect.h);
+
+      for(let data_idx = 0; data_idx < rect.w*rect.h; data_idx++) {
+        let tile_idx = tile_data[data_idx];
+        if(tile_idx >= 0 && tile_idx < this._tile_images.length) {
+          let tile_img = this._tile_images[tile_idx];
+          let dx = this._TILE_SIZE*(rect.x+data_idx%rect.w);
+          let dy = this._TILE_SIZE*((rect.y+data_idx/rect.w)|0);
+          ctx.putImageData(tile_img, dx, dy);
+        }
+      }
+      let w = this._tilemap_image.width;
+      let h = this._tilemap_image.height;
+      this._tilemap_image = ctx.getImageData(0, 0, w, h);
     }
-    ctx.putImageData(billboard_img, 0, 0);
-  }
-  else {
-    canvas.width = 32;
-    canvas.height = 32;
-  }
+    this._tilemap_updated_rects.length = 0;
 
-  document.getElementById("billboard-droplist").selectedIndex = idx;
-  let bboard_model = this._pgpedit_data.billboards.getBillboardModel(idx);
-  document.getElementById("billboard-color").style.backgroundColor = bboard_model.color;
-}
+    let time_ms = Date.now()-start_ms;
+//    console.log("Time: "+time_ms);
+  },
 
-// Draws buffered tilemap on canvas to clear grid etc.
-PgpEditUI.prototype.revertTilemapCanvas = function() {
-  let ctx = this.tilemap_canvas.getContext("2d");
-  ctx.putImageData(this.tilemap_imgdata, 0, 0);
-}
+  _drawTileset: function() {
+    let num_tiles = this._pgpedit_app.tileset.numTiles();
 
-PgpEditUI.prototype.drawTile = function(tile_id, map_col, map_row) {
-  if(tile_id == this._pgpedit_data.tilemap.getTileId(map_col, map_row)) {
-    return;
-  }
-  this._pgpedit_data.tilemap.setTileId(map_col, map_row, tile_id);
+    this._tile_images.length = num_tiles;
 
-  let map_x = map_col*this.TILE_SIZE;
-  let map_y = map_row*this.TILE_SIZE;
+    let rowlen = this._TILESET_ROWLEN;
+    this._tileset_canvas.width = this._TILE_SIZE*Math.min(num_tiles, rowlen);
+    this._tileset_canvas.height = this._TILE_SIZE*(((num_tiles+rowlen-1)/rowlen)|0);
+//    console.log([this._tileset_canvas.width, this._tileset_canvas.height]);
+    let ctx = this._tileset_canvas.getContext("2d");
 
-  let ctx = this.tilemap_canvas.getContext("2d");
-  let image = this.tileset_images[tile_id];
-  ctx.putImageData(image, map_x, map_y);
+    for(let tile_idx = 0; tile_idx < num_tiles; tile_idx++) {
+      let tile_image = this._tile_images[tile_idx];
+      let x = this._TILE_SIZE*(tile_idx%rowlen);
+      let y = this._TILE_SIZE*((tile_idx/rowlen)|0);
+      ctx.putImageData(tile_image, x, y);
+    }
+  },
 
-  // Save canvas imagedata before grid is drawn over tiles.
-  this.tilemap_imgdata = 
-    ctx.getImageData(0, 0, this.tilemap_canvas.width, this.tilemap_canvas.height);
-}
+  _drawTilebrushView: function() {
+    let brush_w = this._tilebrush.width;
+    let brush_h = this._tilebrush.height;
 
-PgpEditUI.prototype.drawTileHighlight = function(map_col, map_row) {
-  let ctx = this.tilemap_canvas.getContext("2d");
-  ctx.fillStyle = this.HIGHLIGHT_COLOR;
-  ctx.fillRect(map_col*this.TILE_SIZE, map_row*this.TILE_SIZE, this.TILE_SIZE, this.TILE_SIZE);
-}
+    let img_w = this._TILE_SIZE*brush_w;
+    let img_h = this._TILE_SIZE*brush_h;
 
-PgpEditUI.prototype.onPropertyChange = function(evt) {
-  console.log("onPropertyChange(): "+evt.target.id);
+    this._tilebrush_canvas.width = img_w;
+    this._tilebrush_canvas.height = img_h;
 
-  if(evt.target.id == "mode-select") {
+    let data = this._tilebrush.tile_data;
+    this._drawTileData(brush_w, brush_h, data, this._tilebrush_canvas, 0, 0);
+
+    if(img_w > 96 || img_h > 96) {
+      let scale = Math.min(96/img_w, 96/img_h);
+      img_w *= scale;
+      img_h *= scale;
+    }
+    let ctx = this._tilebrush_canvas.getContext("2d");
+    ctx.drawImage(this._tilebrush_canvas, 0, 0, img_w, img_h);
+    let image = ctx.getImageData(0, 0, img_w, img_h);
+    this._tilebrush_canvas.width = img_w;
+    this._tilebrush_canvas.height = img_h;
+    ctx.putImageData(image, 0, 0);
+  },
+
+  _drawTileData: function(w, h, tile_data, canvas, dx, dy) {
+    let ctx = canvas.getContext("2d");
+    for(let idx = 0; idx < w*h; idx++) {
+      let x = this._TILE_SIZE*(idx%w);
+      let y = this._TILE_SIZE*((idx/w)|0);
+      tile_idx = tile_data[idx];
+      if(tile_idx >= 0 && tile_idx < this._tile_images.length) {
+        ctx.putImageData(this._tile_images[tile_idx], dx+x, dy+y);
+      }
+      else {
+        ctx.fillStyle = "rgba(0,0,0,0)";
+        ctx.fillRect(dx+x, dy+y, this._TILE_SIZE, this._TILE_SIZE);
+      }
+    }
+  },
+
+  _drawGrid: function(canvas, grid_size, color) {
+    let ctx = canvas.getContext("2d");
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for(let y = grid_size; y < canvas.height; y += grid_size) {
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+    }
+    for(let x = grid_size; x < canvas.width; x += grid_size) {
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvas.height);
+    }
+    ctx.stroke();
+  },
+
+  _handleTilesetCanvasEvent: function(evt) {
+    let canvas = this._tileset_canvas;
+
+    if(evt.type == "mousedown") {
+      if(evt.button == 0) {
+        this._tileset_mousedown_flag = true;
+
+        let mouse = this._canvasCoordinatesFromMouse(canvas, evt);
+        this._tileset_selection_rect.x = mouse.x;
+        this._tileset_selection_rect.y = mouse.y;
+        this._tileset_selection_rect.w = 0;
+        this._tileset_selection_rect.h = 0;
+
+        let rect = this._tileset_selection_rect;
+        let coords = this._rectangleToTileCoordinates(rect.x, rect.y, rect.w, rect.h);
+        let x = this._TILE_SIZE*coords.x1;
+        let y = this._TILE_SIZE*coords.y1;
+        let w = this._TILE_SIZE*(1+coords.x2-coords.x1);
+        let h = this._TILE_SIZE*(1+coords.y2-coords.y1);
+
+        this._drawTileset();
+
+        let ctx = canvas.getContext("2d");
+        ctx.fillStyle = this._SELECTION_COLOR;
+        ctx.fillRect(x, y, w, h);
+
+        this._drawGrid(canvas, this._TILE_SIZE, this._GRID_COLOR);
+      }
+    }
+    else if(evt.type == "mousemove") {
+      if(this._tileset_mousedown_flag) {
+        let mouse = this._canvasCoordinatesFromMouse(canvas, evt);
+        this._tileset_selection_rect.w = mouse.x-this._tileset_selection_rect.x;
+        this._tileset_selection_rect.h = mouse.y-this._tileset_selection_rect.y;
+
+        let rect = this._tileset_selection_rect;
+        let coords = this._rectangleToTileCoordinates(rect.x, rect.y, rect.w, rect.h);
+        let x = this._TILE_SIZE*coords.x1;
+        let y = this._TILE_SIZE*coords.y1;
+        let w = this._TILE_SIZE*(1+coords.x2-coords.x1);
+        let h = this._TILE_SIZE*(1+coords.y2-coords.y1);
+
+        this._drawTileset();
+
+        let ctx = canvas.getContext("2d");
+        ctx.fillStyle = this._SELECTION_COLOR;
+        ctx.fillRect(x, y, w, h);
+
+        this._drawGrid(canvas, this._TILE_SIZE, this._GRID_COLOR);
+      }
+    }
+    else if(evt.type == "mouseup") {
+      if( evt.button == 0 && this._tileset_mousedown_flag) {
+        this._tileset_mousedown_flag = false;
+
+        let rect = this._tileset_selection_rect;
+        let coords = this._rectangleToTileCoordinates(rect.x, rect.y, rect.w, rect.h);
+        let data_w = 1+coords.x2-coords.x1;
+        let data_h = 1+coords.y2-coords.y1;
+        this._tilebrush.tile_data.length = data_w*data_h;
+        for(let idx = 0; idx < this._tilebrush.tile_data.length; idx++) {
+          let tile_idx = ((canvas.width/this._TILE_SIZE)|0)*(coords.y1+((idx/data_w)|0));
+          tile_idx += coords.x1+idx%data_w;
+          this._tilebrush.tile_data[idx] = tile_idx
+        }
+        this._tilebrush.width = data_w;
+        this._tilebrush.height = data_h;
+        this._drawTilebrushView();
+
+        this._drawTileset();
+        this._drawGrid(canvas, this._TILE_SIZE, this._GRID_COLOR);
+      }
+    }
+  },
+
+  _handleTilemapCanvasEvent: function(evt) {
+    if(evt.type == "mousedown") {
+      if(evt.button == 0) {
+        this._tilemap_mousedown_flag = true;
+      }
+    }
+    else if(evt.type == "mouseup") {
+      if(evt.button == 0 && this._tilemap_mousedown_flag) {
+        this._tilemap_mousedown_flag = false;
+      }
+    }
+
+    if(this._mode == "TILES") {
+      this._tileModeEventHandler(evt);
+    }
+    else if(this._mode == "BILLBOARDS") {
+      this._billboardModeEventHandler(evt);
+    }
+    if(this._mode == "WAYPOINTS") {
+      this._waypointModeEventHandler(evt);
+    }
+  },
+
+  _tileModeEventHandler: function(evt) {
+    if(evt.type == "mousedown") {
+      this._onTileModeMousedown(evt);
+    }
+    else if(evt.type == "mousemove") {
+      this._onTileModeMousemove(evt);
+    }
+    else if(evt.type == "mouseup") {
+      this._onTileModeMouseup(evt);
+    }
+    else if(evt.type == "mouseout") {
+      this._tilemap_canvas_dirty = true;
+      if(!this._tilemap_selection_started) {
+        this._tilebrush_cursor_visible = false;
+      }
+    }
+  },
+
+  _billboardModeEventHandler: function(evt) {
+    if(evt.type == "mousedown") {
+      this._onBillboardModeMousedown(evt);
+    }
+    else if(evt.type == "mousemove") {
+      this._onBillboardModeMousemove(evt);
+    }
+    else if(evt.type == "mouseup") {
+      this._onBillboardModeMouseup(evt);
+    }
+  },
+
+  _onBillboardModeMousedown: function(evt) {
+    let billboards = this._pgpedit_app.billboards;
+    let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
+    let canvas_h = this._tilemap_canvas.height;
+
+    if(document.getElementById("add_billboard-tool").checked) {
+      // Add billboard
+      if(billboards.numBillboardObjects() < this._BBRD_MAX_NUM) {
+        let model_index = billboards.getActiveModelIndex();
+        let op = new AddBillboard_Operator(mouse.x*2, (canvas_h-mouse.y)*2, model_index, "BILLBOARDS");
+        this._pgpedit_app.executeOperator(op);
+
+//        this._billboard_grabbed = true;
+//        this._billboard_grabx = 0;
+//        this._billboard_graby = 0;
+      }
+      else {
+        alert("Maximum number of billboards: "+this._BBRD_MAX_NUM);
+      }
+    }
+    else {
+      // Select billboard
+      if(billboards.numBillboardObjects() > 0) {
+        for(let idx = billboards.numBillboardObjects()-1; idx >= 0; idx--) {
+          let billboard = billboards.getBillboardObject(idx);
+          let offs_x = mouse.x-(billboard.x/2);
+          let offs_y = mouse.y-(canvas_h-billboard.y/2);
+          let dist = Math.max(Math.abs(offs_x), Math.abs(offs_y));
+//          console.log("dist: "+dist);
+          if(dist <= this._BBRD_RECT_SIZE/2) {
+            if(document.getElementById("del_billboard-tool").checked) {
+              // Delete billboard
+              let op = new DelBillboard_Operator(idx, "BILLBOARDS");
+              this._pgpedit_app.executeOperator(op);
+            }
+            else {
+              // Grab billboard
+              this._pgpedit_app.billboards.setActiveBillboardObject(billboard);
+              this._billboard_grabbed = true;
+              this._billboard_grab_x = 2*mouse.x;
+              this._billboard_grab_y = 2*(canvas_h-mouse.y);
+            }
+            break;
+          }
+        }
+      }
+    }
+  },
+
+  _onBillboardModeMousemove: function(evt) {
+//    console.log("PgpEdit_View._onBillboardModeMousemove()");
+
+    if(this._billboard_grabbed) {
+      let canvas_h = this._tilemap_canvas.height;
+      let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
+
+      let dist_x = 2*mouse.x-this._billboard_grab_x;
+      let dist_y = 2*(canvas_h-mouse.y)-this._billboard_grab_y;
+      if(this._billboard_move_op == null) {
+        this._billboard_move_op = new MoveBillboard_Operator(dist_x, dist_y, "BILLBOARDS");
+        this._pgpedit_app.executeOperator(this._billboard_move_op);
+      }
+      else {
+        this._pgpedit_app.undo();
+        this._billboard_move_op.dist_x = dist_x;
+        this._billboard_move_op.dist_y = dist_y;
+        this._pgpedit_app.redo();
+      }
+    }
+  },
+
+  _onBillboardModeMouseup: function(evt) {
+    if(this._billboard_grabbed) {
+      this._billboard_grabbed = false;
+      this._billboard_move_op = null;
+    }
+  },
+
+  _waypointModeEventHandler: function(evt) {
+    if(evt.type == "mousedown") {
+      this._onWaypointModeMousedown(evt);
+    }
+    else if(evt.type == "mousemove") {
+      this._onWaypointModeMousemove(evt);
+    }
+    else if(evt.type == "mouseup") {
+      this._onWaypointModeMouseup(evt);
+    }
+  },
+
+  _onWaypointModeMousedown: function(evt) {
+    let waypoints = this._pgpedit_app.waypoints;
+    let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
+    let canvas_h = this._tilemap_canvas.height;
+
+    if(document.getElementById("add_waypoint-tool").checked) {
+      // Add waypoint
+      if(waypoints.numWaypoints() < this._WP_MAX_NUM) {
+        let op = new AddWaypoint_Operator(mouse.x*2, (canvas_h-mouse.y)*2, 128, 100, true, "WAYPOINTS");
+        this._pgpedit_app.executeOperator(op);
+      }
+      else {
+        alert("Maximum number of waypoints: "+this._WP_MAX_NUM);
+      }
+    }
+    else {
+      if(waypoints.numWaypoints() > 0) {
+        // Select waypoint
+        for(let idx = waypoints.numWaypoints()-1; idx >= 0; idx--) {
+          let waypoint = waypoints.getWaypoint(idx);
+          let offs_x = mouse.x-(waypoint.x/2);
+          let offs_y = mouse.y-(canvas_h-waypoint.y/2);
+          let dist_sq = offs_x*offs_x+offs_y*offs_y;
+//          console.log("dist: "+Math.sqrt(dist_sq));
+          if(dist_sq <= waypoint.radius*waypoint.radius/4) {
+            if(document.getElementById("del_waypoint-tool").checked) {
+              // Delete waypoint
+              let op = new DelWaypoint_Operator(idx, "WAYPOINTS");
+              this._pgpedit_app.executeOperator(op);
+            }
+            else {
+              // Grab waypoint
+              this._pgpedit_app.waypoints.setActiveWaypoint(waypoint);
+              this._waypoint_grabbed = true;
+              this._waypoint_grab_x = 2*mouse.x;
+              this._waypoint_grab_y = 2*(canvas_h-mouse.y);
+            }
+            break;
+          }
+        }
+      }
+    }
+  },
+
+  _onWaypointModeMousemove: function(evt) {
+//    console.log("PgpEdit_View._onWaypointModeMousemove()");
+
+    if(this._waypoint_grabbed) {
+      let canvas_h = this._tilemap_canvas.height;
+      let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
+
+      let dist_x = 2*mouse.x-this._waypoint_grab_x;
+      let dist_y = 2*(canvas_h-mouse.y)-this._waypoint_grab_y;
+      if(this._waypoint_move_op == null) {
+        this._waypoint_move_op = new MoveWaypoint_Operator(dist_x, dist_y, "WAYPOINTS");
+        this._pgpedit_app.executeOperator(this._waypoint_move_op);
+      }
+      else {
+        this._pgpedit_app.undo();
+        this._waypoint_move_op.dist_x = dist_x;
+        this._waypoint_move_op.dist_y = dist_y;
+        this._pgpedit_app.redo();
+      }
+
+//      this._tilemap_canvas_dirty = true;
+    }
+  },
+
+  _onWaypointModeMouseup: function(evt) {
+    if(this._waypoint_grabbed) {
+      this._waypoint_grabbed = false;
+      this._waypoint_move_op = null;
+    }
+  },
+
+  _onTileModeMousedown: function(evt) {
+    if(evt.button == 0) {
+      if(evt.shiftKey) {
+        this._tilemap_selection_started = true;
+
+        let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
+        this._tileset_selection_rect.x = mouse.x;
+        this._tileset_selection_rect.y = mouse.y;
+        this._tileset_selection_rect.w = 0;
+        this._tileset_selection_rect.h = 0;
+
+        this._tilemap_canvas_dirty = true;
+        this._tilebrush_cursor_visible = false;
+      }
+      else {
+        let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
+        let x = mouse.x+this._TILE_SIZE*0.5*(this._tilebrush.width+1);
+        x = ((x/this._TILE_SIZE)|0)-this._tilebrush.width;
+        let y = mouse.y+this._TILE_SIZE*0.5*(this._tilebrush.height+1);
+        y = ((y/this._TILE_SIZE)|0)-this._tilebrush.height;
+
+        let w = this._tilebrush.width;
+        let h = this._tilebrush.height;
+        let brush_data = this._tilebrush.tile_data;
+        let track_data = this._pgpedit_app.track_tiles.getTileData(x, y, w, h);
+        for(let idx = 0; idx < w*h; idx++) {
+          if(brush_data[idx] != track_data[idx]) {
+            // Only draw brush when it actually differs from track tiles beneath
+            let op = new putTileData_Operator(brush_data, x, y, w, h, "TILES");
+            this._pgpedit_app.executeOperator(op);
+            break;
+          }
+        }
+      }
+    }
+  },
+
+  _onTileModeMousemove: function(evt) {
+    if(evt.buttons&1) {
+      if(this._tilemap_selection_started) {
+        let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
+        this._tileset_selection_rect.w = mouse.x-this._tileset_selection_rect.x;
+        this._tileset_selection_rect.h = mouse.y-this._tileset_selection_rect.y;
+
+        this._tilemap_canvas_dirty = true;
+        this._tilebrush_cursor_visible = false;
+      }
+      else if(this._tilemap_mousedown_flag) {
+        let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
+        let x = mouse.x+this._TILE_SIZE*0.5*(this._tilebrush.width+1);
+        x = ((x/this._TILE_SIZE)|0)-this._tilebrush.width;
+        let y = mouse.y+this._TILE_SIZE*0.5*(this._tilebrush.height+1);
+        y = ((y/this._TILE_SIZE)|0)-this._tilebrush.height;
+
+        let w = this._tilebrush.width;
+        let h = this._tilebrush.height;
+        let brush_data = this._tilebrush.tile_data;
+        let track_data = this._pgpedit_app.track_tiles.getTileData(x, y, w, h);
+        for(let idx = 0; idx < w*h; idx++) {
+          if(brush_data[idx] != track_data[idx]) {
+            // Only draw brush when it actually differs from track tiles
+            let op = new putTileData_Operator(brush_data, x, y, w, h, "TILES");
+            this._pgpedit_app.executeOperator(op);
+            break;
+          }
+        }
+      }
+    }
+    else {
+      this._tilemap_canvas_dirty = true;
+      if(evt.shiftKey) {
+        this._tilebrush_cursor_visible = false;
+      }
+      else {
+        this._tilebrush_cursor_visible = true;
+      }
+    }
+  },
+
+  _onTileModeMouseup: function(evt) {
+    let canvas = this._tilemap_canvas;
+
+    if(evt.button == 0 && this._tilemap_selection_started) {
+      this._tilemap_selection_started = false;
+
+      let rect = this._tileset_selection_rect;
+      let coords = this._rectangleToTileCoordinates(rect.x, rect.y, rect.w, rect.h);
+      let data_w = 1+coords.x2-coords.x1;
+      let data_h = 1+coords.y2-coords.y1;
+      this._tilebrush.tile_data = this._pgpedit_app.track_tiles.getTileData(coords.x1, coords.y1, data_w, data_h);
+      this._tilebrush.width = data_w;
+      this._tilebrush.height = data_h;
+      this._drawTilebrushView();
+
+      this._tilemap_canvas_dirty = true;
+      this._tilebrush_cursor_visible = true;
+    }
+  },
+
+  _onSelectMode: function(evt) {
+//    console.log("onSelectMode()");
+
     let tabcontents = document.getElementsByClassName("tabcontent");
     for(let i = 0; i < tabcontents.length; i++) {
       tabcontents[i].style.display = "none";
     }
-
     let tabcontent_id = document.getElementById(evt.target.id).value;
     document.getElementById(tabcontent_id).style.display = "block";
 
-    if(tabcontent_id == "tiles-tab") {
-      this.setEditMode(this.EditModeEnum.TILES);
-    }
-    else if(tabcontent_id == "billboards-tab") {
-      this.setEditMode(this.EditModeEnum.BILLBOARDS);
+    let canvas = this._tilemap_canvas;
+    let ctx = canvas.getContext("2d");
+    ctx.putImageData(this._tilemap_image, 0, 0);
+
+    if(tabcontent_id == "billboards-tab") {
+      this._mode = "BILLBOARDS";
+      if(this._pgpedit_app.billboards.numBillboardObjects() > 0) {
+        this._drawBillboards();
+      }
+      this._drawBillboardsPanel();
     }
     else if(tabcontent_id == "waypoints-tab") {
-      this.setEditMode(this.EditModeEnum.WAYPOINTS);
-    }
-  }
-  else if(evt.target.id == "billboard-droplist") {
-    let idx = evt.target.selectedIndex;
-    this._pgpedit_data.billboards.setActiveModelIndex(idx);
-    this.updateSidepanelBillboardArea();
-  }
-  else if(evt.target.id == "trackname-text") {
-    this._pgpedit_data.trackname = document.getElementById(evt.target.id).value;
-    console.log("Trackname changed to "+this._pgpedit_data.trackname+".");
-  }
-  else if(evt.target.id == "author-text") {
-    this._pgpedit_data.author = document.getElementById(evt.target.id).value;
-    console.log("Author changed to "+this._pgpedit_data.author+".");
-  }
-  else if(evt.target.id == "loadtex-file") {
-    this.onTextureFileChange(evt);
-  }
-  else if(evt.target.id == "import") {
-    this.onImportFileChange(evt);
-  }
-  else if(evt.target.id == "radius") {
-    if(this._pgpedit_data.waypoints.numWaypoints() > 0) {
-      let radius = parseInt(document.getElementById(evt.target.id).value);
-      if(radius > 1024) {
-        radius = 1024;
-      }
-      else if(radius < 0) {
-        radius = 0;
-      }
-      document.getElementById(evt.target.id).value = radius;
-      this._pgpedit_data.waypoints.getActiveWaypoint().radius = radius;
+      this._mode = "WAYPOINTS";
+      if(this._pgpedit_app.waypoints.numWaypoints() > 0) {
+        this._drawWaypoints();
 
-      this.revertTilemapCanvas();
-      this.drawWaypoints();
-    }
-    else {
-      document.getElementById(evt.target.id).value = "";
-    }
-  }
-  else if(evt.target.id == "speed") {
-    if(this._pgpedit_data.waypoints.numWaypoints() > 0) {
-      let speed = parseInt(document.getElementById(evt.target.id).value);
-      if(speed > 100) {
-        speed = 100;
-      }
-      else if(speed < 0) {
-        speed = 0;
-      }
-      document.getElementById(evt.target.id).value = speed;
-      this._pgpedit_data.waypoints.getActiveWaypoint().speed = speed;
-
-      this.revertTilemapCanvas();
-      this.drawWaypoints();
-    }
-    else {
-      document.getElementById(evt.target.id).value = "";
-    }
-  }
-  else if(evt.target.id == "checkpoint") {
-    if(this._pgpedit_data.waypoints.numWaypoints() > 0) {
-      this._pgpedit_data.waypoints.getActiveWaypoint().checkpoint = 
-        document.getElementById(evt.target.id).checked;
-
-      this.revertTilemapCanvas();
-      this.drawWaypoints();
-    }
-    else {
-      document.getElementById(evt.target.id).checked = false;
-    }
-  }
-}
-
-PgpEditUI.prototype.onTextureFileChange = function(evt) {
-  let fileinput = document.getElementById(evt.target.id);
-  let file = fileinput.files[0];
-  if (file.type.match("image/*")) {
-    let img = new Image();
-    img.onload = function(evt) {
-      let tex_w = this._pgpedit_data.textures.IMAGE_WIDTH;
-      let tex_h = this._pgpedit_data.textures.IMAGE_HEIGHT;
-      if(img.width != tex_w || img.height != tex_h) {
-        alert("Image size must be "+tex_w+"x"+tex_h+" pixels.");
+        let waypoint = this._pgpedit_app.waypoints.getActiveWaypoint();
+//        console.assert(waypoint != null, "Assertion failed");
+        document.getElementById("radius-textinput").value = waypoint.radius;
+        document.getElementById("speed-textinput").value = waypoint.speed;
+        document.getElementById("checkpoint-boolinput").checked = waypoint.checkpoint;
       }
       else {
-        let canvas = document.createElement("canvas");
-        canvas.width = img.width;
-        canvas.height = img.height;
-        let ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0);
-        let imgdata = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        for(let idx = 0; idx < this._pgpedit_data.textures.numTextures(); idx++) {
-          let tex = this._pgpedit_data.textures.getTexture(idx);
-          let rect = this._texture_rects.get(tex.name);
-          this.changeTextureImage(imgdata, rect.x, rect.y, rect.w, rect.h, tex);
-        }
-        this.createTilesetImages();
-        this.updateTilesetImages(this._pgpedit_data.tileset);
-        this.drawTileset();
-        this.drawActiveTile();
-        this.drawTilemap();
-        this.drawGrid(this.tilemap_canvas.getContext("2d"));
+        document.getElementById("radius-textinput").value = "";
+        document.getElementById("speed-textinput").value = "";
+        document.getElementById("checkpoint-boolinput").checked = false;
       }
-    }.bind(this);
-    img.src = window.URL.createObjectURL(file);
-  }
-  else {
-    alert("Invalid file type. Please choose an image file.");
-  }
-  fileinput.value = "";
-}
-
-PgpEditUI.prototype.changeTextureImage = function(img, sx, sy, w, h, texture) {
-  tex_data = [];
-  tex_data.length = 3*w*h;
-
-  console.log(img);
-
-  let img_w = img.width;
-  for(let y = 0; y < h; y++) {
-    for(let x = 0; x < w; x++) {
-      tex_data[3*(w*y+x)+0] = img.data[4*(img_w*(sy+y)+sx+x)+0];
-      tex_data[3*(w*y+x)+1] = img.data[4*(img_w*(sy+y)+sx+x)+1];
-      tex_data[3*(w*y+x)+2] = img.data[4*(img_w*(sy+y)+sx+x)+2];
     }
-  }
-  texture.image.width = w;
-  texture.image.height = h;
-  texture.image.data = tex_data;
-  if(texture.name.indexOf("sprite") >= 0) {
-    this._pgpedit_data.textures.cropRGBImage(texture.image);
-  }
-}
-
-PgpEditUI.prototype.onImportFileChange = function(evt) {
-  let fileinput = document.getElementById(evt.target.id);
-  let file = fileinput.files[0];
-  if(file.type.match("text/*")) {
-    let reader = new FileReader();
-    reader.onload = function(evt) {
-      this.parseTrack(file.name, reader.result);
-
-      document.getElementById("trackname-text").value = this._pgpedit_data.trackname;
-      document.getElementById("author-text").value = this._pgpedit_data.author;
-
-      this.drawTilemap();
-      this.setEditMode(this.edit_mode);
-    }.bind(this);
-    reader.readAsText(file);
-  }
-  else {
-    alert("Invalid file type. Please choose a text file.");
-  }
-  fileinput.value = "";
-}
-
-PgpEditUI.prototype.onExportButtonClick = function(evt) {
-  let zip = new JSZip();
-
-  let track_str = this.trackToString();
-  zip.file("track.txt", this.trackToString());
-
-  if(this._pgpedit_data.waypoints.numWaypoints() > 0 || 
-      this._pgpedit_data.billboards.numBillboardObjects() > 0) {
-    let waypoints_str = this.waypointsToString();
-    let billboards_str = this.billboardsToString();
-    zip.file("objects.txt", [waypoints_str, billboards_str].join("\n"));
-  }
-
-  this._pgpedit_data.textures.createColorMap();
-  for(let idx = 0; idx < this._pgpedit_data.textures.numTextures(); idx++) {
-    let dataurl = this._pgpedit_data.textures.textureToDataURL(idx);
-    let texname = this._pgpedit_data.textures.getTexture(idx).name;
-    zip.file(texname+".bmp", dataurl.split('base64,')[1], {base64: true});
-  }
-
-  zip.generateAsync({type:"blob"}).then(function(content) {
-    let link = document.createElement('a');
-    link.setAttribute("download", "track.zip");
-    link.href = window.URL.createObjectURL(content);
-    document.body.appendChild(link);
-
-    let event = new MouseEvent('click');
-    link.dispatchEvent(event);
-
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(link.href);
-  });
-
-/*  // Export single track.txt file
-    let data_str = [this.trackToString(), this.waypointsToString(), this.billboardsToString()].join("\n");
-    let data = new Blob([data_str], {type: 'text/plain'});
-
-    let link = document.createElement('a');
-    link.setAttribute("download", "track.txt");
-    link.href = window.URL.createObjectURL(data);
-    document.body.appendChild(link);
-
-    let event = new MouseEvent('click');
-    link.dispatchEvent(event);
-
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(link.href);
-*/
-}
-
-PgpEditUI.prototype.onTilesetMouseDown = function(evt) {
-  let tileset_cols = (this.tileset_canvas.width/this.TILE_SIZE)|0;
-  let coord = this.tileCoordinatesFromMouse(this.tileset_canvas, evt);
-  let tile_id = coord.col+coord.row*tileset_cols;
-  this._pgpedit_data.tileset.setActiveTileId(tile_id);
-  this.drawActiveTile();
-}
-
-PgpEditUI.prototype.onTilemapMouseout = function(evt) {
-  this.revertTilemapCanvas();
-  if(this.edit_mode == this.EditModeEnum.TILES) {
-    this.drawGrid(this.tilemap_canvas.getContext("2d"));
-  }
-  else if(this.edit_mode == this.EditModeEnum.BILLBOARDS) {
-    this.drawBillboards();
-  }
-  else if(this.edit_mode == this.EditModeEnum.WAYPOINTS) {
-    this.drawWaypoints();
-  }
-}
-
-PgpEditUI.prototype.tileCoordinatesFromMouse = function(canvas, evt) {
-  let rect = canvas.getBoundingClientRect();
-  let mousex = (evt.clientX-rect.left)|0;
-  let mousey = (evt.clientY-rect.top)|0;
-  return { 
-    col: ((mousex/this.TILE_SIZE)|0),
-    row: ((mousey/this.TILE_SIZE)|0)
-  };
-}
-
-PgpEditUI.prototype.drawGrid = function(ctx) {
-  let width = ctx.canvas.width;
-  let height = ctx.canvas.height;
-
-  ctx.strokeStyle = this.GRID_COLOR;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(0, 0, width, height);
-
-  ctx.lineWidth = 1;
-  for(let y = this.TILE_SIZE; y < height; y += this.TILE_SIZE) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(width, y);
-    ctx.stroke();
-  }
-  for(let x = this.TILE_SIZE; x < width; x += this.TILE_SIZE) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, height);
-    ctx.stroke();
-  }
-}
-
-PgpEditUI.prototype.drawTileset = function() {
-  let ctx = this.tileset_canvas.getContext("2d");
-
-  let cells = ctx.canvas.width/this.TILE_SIZE;
-  for(let idx = 0; idx < this.tileset_images.length; idx++) {
-    let x = this.TILE_SIZE*(idx%cells);
-    let y = this.TILE_SIZE*((idx/cells)|0);
-    ctx.putImageData(this.tileset_images[idx], x, y);
-  }
-
-  this.drawGrid(ctx);
-}
-
-PgpEditUI.prototype.drawActiveTile = function() {
-  let tile_id = this._pgpedit_data.tileset.getActiveTileId();
-  let image = this.tileset_images[tile_id];
-  this.active_tile_ctx.putImageData(image, 0, 0);
-}
-
-PgpEditUI.prototype.drawTilemap = function() {
-  let ctx = this.tilemap_canvas.getContext("2d");
-
-  for(let row = 0; row < this._pgpedit_data.tilemap.getHeight(); row++) {
-    let map_y = row*this.TILE_SIZE;
-    for(let col = 0; col < this._pgpedit_data.tilemap.getWidth(); col++) {
-      let map_x = col*this.TILE_SIZE;
-      let image = this.tileset_images[this._pgpedit_data.tilemap.getTileId(col, row)];
-      ctx.putImageData(image, map_x, map_y);
+    else {
+      this._mode = "TILES";
+      this._drawGrid(canvas, this._TILE_SIZE, this._GRID_COLOR);
     }
-  }
 
-  this.tilemap_imgdata = 
-    ctx.getImageData(0, 0, this.tilemap_canvas.width, this.tilemap_canvas.height);
-}
+  },
 
-PgpEditUI.prototype.drawBillboards = function() {
-  if(this._pgpedit_data.billboards.numBillboardObjects() > 0 ) {
-    let canvas_h = this.tilemap_canvas.height;
-    let ctx = this.tilemap_canvas.getContext("2d");
+  _drawBillboards: function() {
+    let billboards = this._pgpedit_app.billboards;
+    if(billboards.numBillboardObjects() <= 0 ) {
+      return;
+    }
 
-    for(let idx = 0; idx < this._pgpedit_data.billboards.numBillboardObjects(); idx++) {
-      let billboard = this._pgpedit_data.billboards.getBillboardObject(idx);
+    let canvas_h = this._tilemap_canvas.height;
+    let ctx = this._tilemap_canvas.getContext("2d");
+
+    for(let idx = 0; idx < billboards.numBillboardObjects(); idx++) {
+      let billboard = billboards.getBillboardObject(idx);
       let x = billboard.x/2;
       let y = canvas_h-billboard.y/2;
 
       ctx.lineWidth = 2;
-      ctx.strokeStyle = this._pgpedit_data.billboards.getBillboardModel(billboard.model_index).color;
-      ctx.strokeRect(x-this.BBRD_RECT_SIZE/2, y-this.BBRD_RECT_SIZE/2, 
-        this.BBRD_RECT_SIZE, this.BBRD_RECT_SIZE);
+      ctx.strokeStyle = billboards.getBillboardModel(billboard.model_index).color;
+      ctx.strokeRect(x-this._BBRD_RECT_SIZE/2, y-this._BBRD_RECT_SIZE/2, 
+        this._BBRD_RECT_SIZE, this._BBRD_RECT_SIZE);
 
-      if(billboard == this._pgpedit_data.billboards.getActiveBillboardObject()) {
+      if(billboard == billboards.getActiveBillboardObject()) {
         ctx.lineWidth = 1;
         ctx.strokeStyle = "rgb(0,0,0)";
         ctx.setLineDash([4, 4]);
-        ctx.strokeRect(x-this.BBRD_RECT_SIZE/2-3, y-this.BBRD_RECT_SIZE/2-3, 
-          this.BBRD_RECT_SIZE+6, this.BBRD_RECT_SIZE+6);
+        ctx.strokeRect(x-this._BBRD_RECT_SIZE/2-3, y-this._BBRD_RECT_SIZE/2-3, 
+          this._BBRD_RECT_SIZE+6, this._BBRD_RECT_SIZE+6);
         ctx.setLineDash([]);
       }
     }
-  }
-}
+  },
 
-PgpEditUI.prototype.drawWaypoints = function() {
-  if(this._pgpedit_data.waypoints.numWaypoints() > 0 ) {
-    let canvas_h = this.tilemap_canvas.height;
-    let ctx = this.tilemap_canvas.getContext("2d");
+  _drawWaypoints: function() {
+    waypoints = this._pgpedit_app.waypoints;
+    if(waypoints.numWaypoints() <= 0 ) {
+      return;
+    }
+
+    let canvas_h = this._tilemap_canvas.height;
+    let ctx = this._tilemap_canvas.getContext("2d");
     ctx.lineWidth = 2;
-    ctx.strokeStyle = this.WP_LINE_COLOR;
+    ctx.strokeStyle = this._WP_LINE_COLOR;
 
-    let waypoint = this._pgpedit_data.waypoints.getWaypoint(0);
+    let waypoint = waypoints.getWaypoint(0);
     let prevx = waypoint.x;
     let prevy = waypoint.y;
-    for(let idx = 1; idx < this._pgpedit_data.waypoints.numWaypoints(); idx++) {
-      waypoint = this._pgpedit_data.waypoints.getWaypoint(idx);
+    for(let idx = 1; idx < waypoints.numWaypoints(); idx++) {
+      waypoint = waypoints.getWaypoint(idx);
       ctx.setLineDash([(waypoint.speed/5)|0, ((100-waypoint.speed)/5)|0]);
       ctx.beginPath();
       ctx.moveTo(prevx/2, canvas_h-prevy/2);
@@ -1430,14 +1788,14 @@ PgpEditUI.prototype.drawWaypoints = function() {
       prevy = waypoint.y;
     }
 
-    for(let idx = 0; idx < this._pgpedit_data.waypoints.numWaypoints(); idx++) {
-      waypoint = this._pgpedit_data.waypoints.getWaypoint(idx);
+    for(let idx = 0; idx < waypoints.numWaypoints(); idx++) {
+      waypoint = waypoints.getWaypoint(idx);
       let x = waypoint.x/2;
       let y = canvas_h-waypoint.y/2;
       let radius = waypoint.radius/2;
 
       ctx.lineWidth = 2;
-      ctx.strokeStyle = this.WP_RIM_COLOR;
+      ctx.strokeStyle = this._WP_RIM_COLOR;
       if(!waypoint.checkpoint) {
         ctx.setLineDash([20, 10]);
       }
@@ -1447,11 +1805,11 @@ PgpEditUI.prototype.drawWaypoints = function() {
       ctx.setLineDash([]);
 
       ctx.lineWidth = 2;
-      ctx.strokeStyle = this.WP_TARGET_COLOR;
-      ctx.strokeRect(x-this.WP_TARGET_RECT_SIZE/2, y-this.WP_TARGET_RECT_SIZE/2, 
-        this.WP_TARGET_RECT_SIZE, this.WP_TARGET_RECT_SIZE);
+      ctx.strokeStyle = this._WP_TARGET_COLOR;
+      ctx.strokeRect(x-this._WP_TARGET_RECT_SIZE/2, y-this._WP_TARGET_RECT_SIZE/2, 
+        this._WP_TARGET_RECT_SIZE, this._WP_TARGET_RECT_SIZE);
 
-      if(waypoint == this._pgpedit_data.waypoints.getActiveWaypoint()) {
+      if(waypoint == waypoints.getActiveWaypoint()) {
         ctx.lineWidth = 1;
         ctx.strokeStyle = "rgb(0,0,0)";
         ctx.setLineDash([4, 4]);
@@ -1459,198 +1817,1394 @@ PgpEditUI.prototype.drawWaypoints = function() {
         ctx.setLineDash([]);
       }
     }
+  },
+
+  _onLoadTextures: function(evt) {
+    let fileinput = document.getElementById(evt.target.id);
+    let file = fileinput.files[0];
+    if (file.type.match("image/*")) {
+      let img = new Image();
+      img.onload = function(evt) {
+        let canvas = this._temp_canvas;
+        if(canvas.width < img.width) {
+          canvas.width = img.width;
+        }
+        if(canvas.height < img.height) {
+          canvas.height = img.height;
+        }
+        let ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+        let ctximg = ctx.getImageData(0, 0, img.width, img.height);
+
+        let rgb_data = [];
+        rgb_data.length = 3*img.width*img.height;
+        for(let idx = 0; idx < img.width*img.height; idx++) {
+          let x = idx%img.width;
+          let y = (idx/img.width)|0;
+          let src_idx = 4*(img.width*y+x);
+          let dest_idx = 3*(img.width*y+x);
+          rgb_data[dest_idx] = ctximg.data[src_idx];
+          rgb_data[dest_idx+1] = ctximg.data[src_idx+1];
+          rgb_data[dest_idx+2] = ctximg.data[src_idx+2];
+        }
+
+        let op = new loadTextures_Operator(rgb_data, img.width, img.height);
+        this._pgpedit_app.executeOperator(op);
+
+        this.updateTileset();
+        this._drawTileset();
+        this._drawGrid(this._tileset_canvas, this._TILE_SIZE, this._GRID_COLOR);
+        this._drawTilebrushView();
+
+//        let w = this._tilebrush.width;
+//        let h = this._tilebrush.height;
+//        this.onTilemapUpdated(this._tilebrush, 0, 0, w, h);
+
+        w = this._pgpedit_app.track_tiles.width;
+        h = this._pgpedit_app.track_tiles.height;
+        this.onTilemapUpdated(this._pgpedit_app.track_tiles, 0, 0, w, h);
+        this._drawTilemap(evt);
+      }.bind(this);
+      img.src = window.URL.createObjectURL(file);
+    }
+    else {
+      alert("Invalid file type. Please choose an image file.");
+    }
+    fileinput.value = "";
+  },
+
+  _onLoadTrack: function(evt) {
+    let fileinput = document.getElementById(evt.target.id);
+    let file = fileinput.files[0];
+    if(file.type.match("text/*")) {
+      let reader = new FileReader();
+//      reader.addEventListener("load", this);
+      reader.onload = function(evt) {
+        let op = new ImportTrack_Operator(reader.result, "TILES");
+        this._pgpedit_app.executeOperator(op);
+        op = new ImportBillboards_Operator(reader.result, "BILLBOARDS");
+        this._pgpedit_app.executeOperator(op);
+        op = new ImportWaypoints_Operator(reader.result, "WAYPOINTS");
+        this._pgpedit_app.executeOperator(op);
+
+        this._drawTilemap(evt);
+      }.bind(this);
+      reader.readAsText(file);
+    }
+    else {
+      alert("Invalid file type. Please choose a text file.");
+    }
+    fileinput.value = "";
+  },
+
+  _canvasCoordinatesFromMouse(canvas, evt) {
+    let rect = canvas.getBoundingClientRect();
+    let mouse_x = evt.clientX-((rect.left+0.5)|0)-canvas.clientLeft;
+    let mouse_y = evt.clientY-((rect.top+0.5)|0)-canvas.clientTop;
+
+    if(mouse_x < 0) {
+      mouse_x = 0;
+    }
+    else if(mouse_x >= canvas.width) {
+      mouse_x = canvas.width-1;
+    }
+    if(mouse_y < 0) {
+      mouse_y = 0;
+    }
+    else if(mouse_y >= canvas.height) {
+      mouse_y = canvas.height-1;
+    }
+
+    return { x: mouse_x,
+             y: mouse_y };
+  },
+
+  _rectangleToTileCoordinates: function(x, y, w, h) {
+    let x1 = (w >= 0) ? x : x+w;
+    let x2 = (w >= 0) ? x+w : x;
+    let y1 = (h >= 0) ? y : y+h;
+    let y2 = (h >= 0) ? y+h : y;
+    return { x1: (x1/this._TILE_SIZE)|0,
+             y1: (y1/this._TILE_SIZE)|0,
+             x2: (x2/this._TILE_SIZE)|0,
+             y2: (y2/this._TILE_SIZE)|0 };
+  },
+
+  _populateBillboardDroplist: function(settings) {
+    let droplist = document.getElementById("billboard-droplist");
+    while(droplist.length > 0) {
+      droplist.remove(0);
+    }
+
+    let billboards = settings.billboards;
+    for(let idx = 0; idx < billboards.length; idx++) {
+      let opt = document.createElement("option");
+      opt.innerHTML = billboards[idx].name;
+      droplist.appendChild(opt);
+    }
   }
+};
+
+
+/* PgpEdit_Application class (command receiver)
+*/
+function PgpEdit_Application() {
+//  console.log("PgpEdit_Application.constructor()");
+
+  this._author = new StringProperty(12);
+  this._trackname = new StringProperty(12);
+  this._billboards = new Billboards();
+  this._textures = [];
+  this._tileset = new Tileset(this);
+  this._track_tiles = new Tilemap(32, 32);
+  this._waypoints = new Waypoints();
+  this._view = new PgpEdit_View(this);
+  this._tex_img = {width: 0, height: 0, rects: []};
+  this._redo_stack = [];
+  this._undo_stack = [];
+}
+PgpEdit_Application.prototype = {
+  _MAX_UNDOS: 999,
+
+  init: function(settings) {
+//    console.log("PgpEdit_Application.init()");
+
+    let billboard_tex_names = [];
+    let num_billboards = settings.billboards.length;
+    for(let idx = 0; idx < num_billboards; idx++) {
+      billboard_tex_names.push(settings.billboards[idx].texture);
+    }
+
+    // Initialize textures
+    let num_texs = settings.textures.length;
+    this.textures.length = num_texs;
+    for(let idx = 0; idx < num_texs; idx++) {
+      let name = settings.textures[idx].name;
+      this.textures[idx] = new Texture(name);
+      let width = settings.textures[idx].width;
+      let height = settings.textures[idx].height;
+      let data = this._b64StringToArray(settings.textures[idx].data);
+      // Autocrop billboard textures
+      let autocrop = (billboard_tex_names.indexOf(name) >= 0) ? true : false;
+      this.textures[idx].fromRGBData(data, width, height, autocrop);
+    }
+
+    this._tex_img.width = settings.texture_img_w;
+    this._tex_img.height = settings.texture_img_h;
+    this._tex_img.rects.length = num_texs;
+    for(let idx = 0; idx < num_texs; idx++) {
+      this._tex_img.rects[idx] = {
+        x: settings.textures[idx].x,
+        y: settings.textures[idx].y,
+        width: settings.textures[idx].width,
+        height: settings.textures[idx].height
+      };
+    }
+
+    // Initialize tiles
+    let ptn_w = settings.tileset.pattern_width;
+    let ptn_h = settings.tileset.pattern_height;
+    let patterns = settings.tileset.patterns.map(item => this._b64StringToArray(item));
+    this.tileset.initTiles(settings.tileset.symbols, ptn_w, ptn_h, patterns);
+
+    // Initialize billboards
+    let billboards = settings.billboards;
+    for(let idx = 0; idx < billboards.length; idx++) {
+      let bboard_model = this.billboards.addBillboardModel();
+      bboard_model.name = billboards[idx].name;
+      bboard_model.color = billboards[idx].color;
+      bboard_model.texture = billboards[idx].texture;
+    }
+    this.billboards.setActiveModelIndex(0);
+//    console.log(this.billboards.numBillboardModels()+" BilboardModels added");
+
+
+    this._view.init(settings);
+  },
+
+  get author() {
+    return this._author;
+  },
+
+  get trackname() {
+    return this._trackname;
+  },
+
+  get billboards() {
+    return this._billboards;
+  },
+
+  get textures() {
+    return this._textures;
+  },
+
+  get tileset() {
+    return this._tileset;
+  },
+
+  get track_tiles() {
+    return this._track_tiles;
+  },
+
+  get waypoints() {
+    return this._waypoints;
+  },
+
+  get texture_image() {
+    return this._tex_img;
+  },
+
+  get view() {
+    return this._view;
+  },
+
+  executeOperator: function(operator) {
+    operator.init(this);
+    if(operator.execute(this)) {
+      this._redo_stack.length = 0;
+      if(this._undo_stack.length > this._MAX_UNDOS) {
+        this._undo_stack.shift();
+      }
+      this._undo_stack.push(operator);
+
+//      console.log(this._undo_stack);
+    }
+  },
+
+  undo: function() {
+//    console.log("PgpEdit_Application.undo()");
+    for(let idx = this._undo_stack.length-1; idx >= 0; idx--) {
+      operator = this._undo_stack[idx];
+      if(operator.poll(this)) {
+        this._undo_stack.splice(idx, 1);
+        this._redo_stack.push(operator);
+        operator.revert(this);
+
+//        console.log(this._undo_stack);
+        return;
+      }
+    }
+    if(this._undo_stack.length == 0) {
+//      console.log("Undo stack is empty");
+    }
+    else {
+//      console.log("No operator to undo");
+    }
+
+//    if(this._undo_stack.length > 0) {
+//      operator = this._undo_stack.pop();
+//      this._redo_stack.push(operator);
+//      operator.revert(this);
+//    }
+//    else {
+//      console.log("Stack is empty");
+//    }
+  },
+
+  redo: function() {
+//    console.log("PgpEdit_Application.redo()");
+    for(let idx = this._redo_stack.length-1; idx >= 0; idx--) {
+      operator = this._redo_stack[idx];
+      if(operator.poll(this)) {
+        this._redo_stack.splice(idx, 1);
+        this._undo_stack.push(operator);
+        operator.execute(this);
+        return;
+      }
+    }
+    if(this._redo_stack.length == 0) {
+//      console.log("Redo stack is empty");
+    }
+    else {
+//      console.log("No operators to redo");
+    }
+
+//    if(this._redo_stack.length > 0) {
+//      operator = this._redo_stack.pop();
+//      this._undo_stack.push(operator);
+//      operator.execute(this);
+//    }
+//    else {
+//      console.log("Stack is empty");
+//    }
+  },
+
+  get history() {
+    return this._undo_stack;
+  },
+
+  _b64StringToArray: function(b64string) {
+    return Array.from(atob(b64string), (x) => x.charCodeAt(0));
+  }
+};
+
+
+/* ================
+ * Operator classes
+ * ================ */
+
+/* setStringPropertyValue_Operator class
+*/
+function setStringPropertyValue_Operator(property, value, mode = "") {
+  this._mode = mode;
+  this._prev_value = null;
+  this._value = value;
+  this._property = property;
+}
+setStringPropertyValue_Operator.prototype = {
+  init: function(app) {
+  },
+
+  poll: function(app) {
+    return (this._mode == "" || this._mode.indexOf(app.view.mode) >= 0);
+  },
+
+  execute: function(app) {
+    this._prev_value = this._property.value;
+    this._property.value = this._value;
+//    console.log("setStringPropertyValue_Operator.execute()");
+//    console.log("prev_value: "+this._prev_value+", value: "+this._value);
+    return true;
+  },
+
+  revert: function(app) {
+//    console.assert(this._prev_value != null, "Previous value is not defined");
+    this._property.value = this._prev_value;
+//    console.log("setStringPropertyValue_Operator.revert()");
+  }
+};
+
+
+/* putTileData_Operator class
+*/
+function putTileData_Operator(tile_data, x, y, w, h, mode = "") {
+  this._mode = mode;
+  this._prev_data = null;
+  this._data = tile_data.slice();
+  this._x = x;
+  this._y = y;
+  this._w = w;
+  this._h = h;
 }
 
-PgpEditUI.prototype.parseTrack = function(filename, text) {
-  let lines = text.split('\n');
-  if(lines.length < this.rows+2) {
-    alert("Import failed: too few lines.");
-    return;
-  }
+putTileData_Operator.prototype = {
+  init: function(app) {
+  },
 
-  let linenum = 0;
-  let currline = lines[linenum].trim();
-  if(filename != "objects.txt") {
-    this._pgpedit_data.trackname = lines[0].slice(0, 12);
-    this._pgpedit_data.author = lines[1].slice(0, 12);
-    linenum = this.parseTilemap(lines, 2);
-    if(linenum < 2+32) {
-      // Error in parsing tilemap
-      return;
-    }
-  }
+  poll: function(app) {
+//    console.log([this._mode, app.view.mode]);
+    return (this._mode == "" || this._mode.indexOf(app.view.mode) >= 0);
+  },
 
-  this._pgpedit_data.waypoints.clearWaypoints();
-  this._pgpedit_data.billboards.clearBillboardObjects();
+  execute: function(app) {
+//    console.log("putTileData_Operator.execute()");
+    this._prev_data = app.track_tiles.getTileData(this._x, this._y, this._w, this._h);
+    app.track_tiles.putTileData(this._data, this._x, this._y, this._w, this._h);
+//    console.log("prev_data: "+this._prev_data+", data: "+this._data);
+    return true;
+  },
 
-  while(linenum < lines.length) {
-    currline = lines[linenum].trim();
-    if(currline.length > 0) {
-      if(currline == "[waypoints]") {
-        linenum = this.parseWaypoints(lines, linenum+1);
-      }
-      else if(currline == "[billboards]") {
-        linenum = this.parseBillboards(lines, linenum+1);
-      }
-    }
-    linenum++;
+  revert: function(app) {
+//    console.log("putTileData_Operator.revert()");
+//    console.assert(this._prev_data != null, "Previous data is not defined");
+    app.track_tiles.putTileData(this._prev_data, this._x, this._y, this._w, this._h);
   }
+};
+
+
+/* AddBillboard_Operator class
+*/
+function AddBillboard_Operator(x, y, model_index, mode = "") {
+  this._mode = mode;
+  this._x = x;
+  this._y = y;
+  this._model_index = model_index;
+  this._index = null;
 }
 
-PgpEditUI.prototype.parseTilemap = function(lines, linenum) {
-  console.log("parseTilemap()");
-  let map_w = this._pgpedit_data.tilemap.getWidth();
-  let map_h = this._pgpedit_data.tilemap.getHeight();
-  let data = [];
-  data.length = map_w*map_h;
+AddBillboard_Operator.prototype = {
+  get options() {
+    return ["UNDO"];
+  },
 
-  for(let row = 0; row < map_h; row++) {
-    let currline = lines[linenum].trim();
-    if(currline.length != map_w) {
-      alert("Error on line "+(linenum+1)+": Track definition must have exactly "
-        +map_w+" tile symbols on every line.");
-      return linenum;
-    }
+  init: function(app) {
+  },
 
-    for(let col=0; col < map_w; col++) {
-      let tile_idx = this._pgpedit_data.tileset.tileSymbolToId(currline[col]);
-      if(tile_idx < 0) {
-        alert("Invalid tile symbol '"+currline[col]+"' on line "+(linenum+1)+".");
-        tile_idx = 0;
-      }
-      data[map_w*row+col] = tile_idx;
-    }
-    linenum++;
+  poll: function(app) {
+//    console.log([this._mode, app.view.mode]);
+    return (this._mode == "" || this._mode.indexOf(app.view.mode) >= 0);
+  },
+
+  execute: function(app) {
+//    console.log("AddBillboard_Operator.execute()");
+
+    this._index = app.billboards.numBillboardObjects();
+    let billboard = app.billboards.addBillboardObject(this._index);
+    billboard.model_index = this._model_index;
+    billboard.x = this._x;
+    billboard.y = this._y;
+
+    return true;
+  },
+
+  revert: function(app) {
+//    console.log("AddBillboard_Operator.revert()");
+//    console.assert(this._billboard != null, "Billboard is not defined");
+
+    app.billboards.delBillboardObject(this._index);
+//    console.log("Billboard deleted");
   }
+};
 
-  for(let row = 0; row < map_h; row++) {
-    for(let col=0; col < map_w; col++) {
-      let tile_idx = data[map_w*row+col];
-      this._pgpedit_data.tilemap.setTileId(col, row, tile_idx);
-    }
-  }
-  return linenum;
+
+/* DelBillboard_Operator class
+*/
+function DelBillboard_Operator(index, mode = "") {
+  this._mode = mode;
+  this._index = index;
+  this._billboard = null;
 }
 
-PgpEditUI.prototype.parseWaypoints = function(lines, linenum) {
-  console.log("parseWaypoints()");
+DelBillboard_Operator.prototype = {
+  get options() {
+    return ["UNDO"];
+  },
 
-  while(linenum < lines.length) {
-    let errorFlag = false;
-    let currline = lines[linenum].trim();
-    if(currline.length > 0) {
-      if(currline[0] == "[") {
-        linenum--;
+  init: function(app) {
+  },
+
+  poll: function(app) {
+//    console.log([this._mode, app.view.mode]);
+    return (this._mode == "" || this._mode.indexOf(app.view.mode) >= 0);
+  },
+
+  execute: function(app) {
+//    console.log("DelBillboard_Operator.execute()");
+
+    this._billboard = app.billboards.getBillboardObject(this._index);
+    if(this._billboard != null) {
+      app.billboards.delBillboardObject(this._index);
+      return true;
+    }
+
+    return false;
+  },
+
+  revert: function(app) {
+//    console.log("DelBillboard_Operator.revert()");
+//    console.assert(this._billboard != null, "Billboard is not defined");
+
+    let billboard = app.billboards.addBillboardObject(this._index);
+    billboard.model_index = this._billboard.model_index;
+    billboard.x = this._billboard.x;
+    billboard.y = this._billboard.y;
+  }
+};
+
+
+/* MoveBillboard_Operator class
+*/
+function MoveBillboard_Operator(dist_x, dist_y, mode = "") {
+  this._mode = mode;
+
+  this._billboard_idx = -1;
+  this._dist_x = dist_x;
+  this._dist_y = dist_y;
+}
+
+MoveBillboard_Operator.prototype = {
+  get options() {
+    return ["UNDO", "MODAL"];
+  },
+
+  get dist_x() {
+    return this._dist_x;
+  },
+  set dist_x(val) {
+    this._dist_x = val;
+  },
+
+  get dist_y() {
+    return this._dist_y;
+  },
+  set dist_y(val) {
+    this._dist_y = val;
+  },
+
+  init: function(app) {
+    let billboard = app.billboards.getActiveBillboardObject();
+    for(let idx = 0; idx < app.billboards.numBillboardObjects(); idx++) {
+      if(app.billboards.getBillboardObject(idx) == billboard) {
+        this._billboard_idx = idx;
         break;
       }
-      values = currline.split(",")
-      if(values.length == 5) {
-        for(let idx = 0; idx < values.length; idx++) {
-          values[idx] = parseInt(values[idx]);
-          if(isNaN(values[idx])) {
-            errorFlag = true;
-            break;
-          }
-        }
-        let waypoint = this._pgpedit_data.waypoints.addWaypoint();
-        waypoint.x = values[0];
-        waypoint.y = values[1];
-        waypoint.radius = values[2];
-        waypoint.speed = Math.min(values[3], 100);
-        waypoint.checkpont = (values[4] != 0);
-      }
-      else {
-        errorFlag = true;
-      }
     }
-    if(errorFlag) {
-      alert("Error on line "+(linenum+1)+": Invalid waypoint definition.");
-    }
-    linenum++;
+//    console.assert(this._billboard_idx >= 0, "Assertion failed");
+  },
+
+  poll: function(app) {
+//    console.log([this._mode, app.view.mode]);
+    return (this._mode == "" || this._mode.indexOf(app.view.mode) >= 0);
+  },
+
+//  modal: function(app, evt) {
+//    if() {
+//      return "FINISHED";
+//    }
+//    else if() {
+//      return "CANCELLED";
+//    }
+//    return "RUNNING";
+//  },
+
+  execute: function(app) {
+//    console.log("MoveBillboard_Operator.execute()");
+
+    let billboard = app.billboards.getBillboardObject(this._billboard_idx);
+    billboard.x += this._dist_x;
+    billboard.y += this._dist_y;
+
+    return true;
+  },
+
+  revert: function(app) {
+//    console.log("MoveBillboard_Operator.revert()");
+
+    let billboard = app.billboards.getBillboardObject(this._billboard_idx);
+    billboard.x -= this._dist_x;
+    billboard.y -= this._dist_y;
   }
+};
 
-  console.log("Imported "+this._pgpedit_data.waypoints.numWaypoints()+" waypoints.");
 
-  return linenum;
+/* setWaypointProperties_Operator class
+*/
+function setWaypointProperties_Operator(radius, speed, checkpoint, mode = "") {
+  this._mode = mode;
+  this._prev_radius = null;
+  this._prev_speed = null;
+  this._prev_checkpoint = null;
+  this._radius = radius;
+  this._speed = speed;
+  this._checkpoint = checkpoint;
+  this._waypoint_idx = -1;
 }
-
-PgpEditUI.prototype.parseBillboards = function(lines, linenum) {
-  console.log("parseBillboards()");
-
-  while(linenum < lines.length) {
-    let errorFlag = false;
-    let currline = lines[linenum].trim();
-    if(currline.length > 0) {
-      if(currline[0] == "[") {
+setWaypointProperties_Operator.prototype = {
+  init: function(app) {
+    let waypoint = app.waypoints.getActiveWaypoint();
+    for(let idx = 0; idx < app.waypoints.numWaypoints(); idx++) {
+      if(app.waypoints.getWaypoint(idx) == waypoint) {
+        this._waypoint_idx = idx;
         break;
       }
-      values = currline.split(",")
-      if(values.length == 3) {
-        for(let idx = 0; idx < values.length; idx++) {
-          values[idx] = parseInt(values[idx]);
-          if(isNaN(values[idx])) {
-            errorFlag = true;
-            break;
-          }
+    }
+//    console.assert(this._waypoint_idx >= 0, "Assertion failed");
+
+    this._prev_radius = waypoint.radius;
+    this._prev_speed = waypoint.speed;
+    this._prev_checkpoint = waypoint.checkpoint;
+  },
+
+  poll: function(app) {
+    return (this._mode == "" || this._mode.indexOf(app.view.mode) >= 0);
+  },
+
+  execute: function(app) {
+//    console.log("setWaypointProperties_Operator.execute()");
+
+    let waypoint = app.waypoints.getWaypoint(this._waypoint_idx);
+    waypoint.radius = this._radius;
+    waypoint.speed = this._speed;
+    waypoint.checkpoint = this._checkpoint;
+    return true;
+  },
+
+  revert: function(app) {
+//    console.log("setWaypointProperties_Operator.revert()");
+
+    let waypoint = app.waypoints.getWaypoint(this._waypoint_idx);
+    waypoint.radius = this._prev_radius;
+    waypoint.speed = this._prev_speed;
+    waypoint.checkpoint = this._prev_checkpoint;
+  }
+};
+
+
+/* AddWaypoint_Operator class
+*/
+function AddWaypoint_Operator(x, y, radius, speed, checkpoint, mode = "") {
+  this._mode = mode;
+  this._checkpoint = checkpoint;
+  this._radius = radius;
+  this._speed = speed;
+  this._x = x;
+  this._y = y;
+  this._waypoint_idx = -1;
+}
+
+AddWaypoint_Operator.prototype = {
+  init: function(app) {
+  },
+
+  poll: function(app) {
+//    console.log([this._mode, app.view.mode]);
+    return (this._mode == "" || this._mode.indexOf(app.view.mode) >= 0);
+  },
+
+  execute: function(app) {
+//    console.log("AddWaypoint_Operator.execute()");
+
+    if(this._waypoint_idx < 0) {
+      let active_wp = app.waypoints.getActiveWaypoint();
+//      console.log(active_wp);
+      this._waypoint_idx = 0;
+      while(this._waypoint_idx < app.waypoints.numWaypoints()) {
+        if(active_wp == app.waypoints.getWaypoint(this._waypoint_idx)) {
+          this._waypoint_idx++;
+          break;
         }
-        let billboard = this._pgpedit_data.billboards.addBillboardObject();
-        billboard.model_index = values[0];
-        billboard.x = values[1];
-        billboard.y = values[2];
-      }
-      else {
-        errorFlag = true;
+        this._waypoint_idx++;
       }
     }
-    if(errorFlag) {
-      alert("Error on line "+(linenum+1)+": Invalid billboard definition.");
+    let wp = app.waypoints.addWaypoint(this._waypoint_idx);
+    wp.checkpoint = this._checkpoint;
+    wp.radius = this._radius;
+    wp.speed = this._speed;
+    wp.x = this._x;
+    wp.y = this._y;
+
+    return true;
+  },
+
+  revert: function(app) {
+//    console.log("AddWaypoint_Operator.revert()");
+
+    app.waypoints.delWaypoint(this._waypoint_idx);
+//    console.log("Waypoint deleted");
+  }
+};
+
+
+/* DelWaypoint_Operator class
+*/
+function DelWaypoint_Operator(index, mode = "") {
+  this._mode = mode;
+  this._waypoint_idx = index;
+  this._waypoint = null;
+}
+
+DelWaypoint_Operator.prototype = {
+  init: function(app) {
+  },
+
+  poll: function(app) {
+//    console.log([this._mode, app.view.mode]);
+    return (this._mode == "" || this._mode.indexOf(app.view.mode) >= 0);
+  },
+
+  execute: function(app) {
+//    console.log("DelWaypoint_Operator.execute()");
+
+    this._waypoint = app.waypoints.getWaypoint(this._waypoint_idx);
+    if(this._waypoint != null) {
+      app.waypoints.delWaypoint(this._waypoint_idx);
+      return true;
     }
-    linenum++;
+
+    return false;
+  },
+
+  revert: function(app) {
+//    console.log("DelWaypoint_Operator.revert()");
+//    console.assert(this._waypoint != null, "Waypoint is not defined");
+
+    let waypoint = app.waypoints.addWaypoint(this._waypoint_idx);
+    waypoint.checkpoint = this._waypoint.checkpoint;
+    waypoint.radius = this._waypoint.radius;
+    waypoint.speed = this._waypoint.speed;
+    waypoint.x = this._waypoint.x;
+    waypoint.y = this._waypoint.y;
   }
+};
 
-  console.log("Imported "+this._pgpedit_data.billboards.numBillboardObjects()+" billboards.");
 
-  return linenum;
+/* MoveWaypoint_Operator class
+*/
+function MoveWaypoint_Operator(dist_x, dist_y, mode = "") {
+  this._mode = mode;
+
+  this._waypoint_idx = -1;
+  this._dist_x = dist_x;
+  this._dist_y = dist_y;
 }
 
-PgpEditUI.prototype.trackToString = function() {
-  let lines = [this._pgpedit_data.trackname, this._pgpedit_data.author];
+MoveWaypoint_Operator.prototype = {
+  get dist_x() {
+    return this._dist_x;
+  },
+  set dist_x(val) {
+    this._dist_x = val;
+  },
 
-  for(let row = 0; row < this._pgpedit_data.tilemap.getHeight(); row++) {
-    lines.push("");
-    for(let col = 0; col < this._pgpedit_data.tilemap.getWidth(); col++) {
-      let tile_id = this._pgpedit_data.tilemap.getTileId(col, row);
-      lines[2+row] += this._pgpedit_data.tileset.tileSymbolAt(tile_id);
+  get dist_y() {
+    return this._dist_y;
+  },
+  set dist_y(val) {
+    this._dist_y = val;
+  },
+
+  init: function(app) {
+    let waypoint = app.waypoints.getActiveWaypoint();
+    for(let idx = 0; idx < app.waypoints.numWaypoints(); idx++) {
+      if(app.waypoints.getWaypoint(idx) == waypoint) {
+        this._waypoint_idx = idx;
+        break;
+      }
     }
+//    console.assert(this._waypoint_idx >= 0, "Assertion failed");
+  },
+
+  poll: function(app) {
+//    console.log([this._mode, app.view.mode]);
+    return (this._mode == "" || this._mode.indexOf(app.view.mode) >= 0);
+  },
+
+//  modal: function(app, evt) {
+//    if() {
+//      return "FINISHED";
+//    }
+//    else if() {
+//      return "CANCELLED";
+//    }
+//    return "RUNNING";
+//  },
+
+  execute: function(app) {
+//    console.log("MoveWaypoint_Operator.execute()");
+
+    let waypoint = app.waypoints.getWaypoint(this._waypoint_idx);
+    waypoint.x += this._dist_x;
+    waypoint.y += this._dist_y;
+
+    return true;
+  },
+
+  revert: function(app) {
+//    console.log("MoveWaypoint_Operator.revert()");
+
+    let waypoint = app.waypoints.getWaypoint(this._waypoint_idx);
+    waypoint.x -= this._dist_x;
+    waypoint.y -= this._dist_y;
   }
-  return lines.join('\n');
+};
+
+
+/* ImportTrack_Operator class
+*/
+ImportTrack_Operator = function(text, mode = "") {
+  this._mode = mode;
+  this._prev_trackname = null;
+  this._prev_author = null;
+  this._prev_track_tiles = null;
+
+  this._text = text.slice();
 }
 
-PgpEditUI.prototype.waypointsToString = function() {
-  let lines = [];
-  lines.push("[waypoints]");
-  let num_waypoints = this._pgpedit_data.waypoints.numWaypoints();
-  for(let idx = 0; idx < num_waypoints; idx++) {
-    let waypoint = this._pgpedit_data.waypoints.getWaypoint(idx);
-    lines.push(waypoint.x+","+waypoint.y+","+waypoint.radius+","+waypoint.speed+","+(waypoint.checkpoint ? 1 : 0));
+ImportTrack_Operator.prototype = {
+  init: function(app) {
+  },
+
+  poll: function(app) {
+    return (this._mode == "" || this._mode.indexOf(app.view.mode) >= 0);
+  },
+
+  execute: function(app) {
+//    console.log("ImportTrack_Operator.execute()");
+
+    if(this._text.trim()[0] == "[") {
+      // No track data in this file
+      return false;
+    }
+
+    lines = this._text.split('\n');
+    if(lines.length < this.rows+2) {
+      alert("Import failed: too few lines.");
+      return false;
+    }
+
+    let linenum = 0;
+    let currline = lines[linenum].trim();
+    if(this._filename != "objects.txt") {
+      linenum = this._parseTrackTiles(app, lines, 2);
+      if(linenum < 2+32) {
+        // Error in parsing tilemap
+        return false;
+      }
+      app.trackname.value = lines[0].slice(0, 12);
+      app.author.value = lines[1].slice(0, 12);
+    }
+
+    return true;
+  },
+
+  revert: function(app) {
+//    console.log("ImportTrack_Operator.revert()");
+
+    if(this._prev_track_tiles != null) {
+      app.trackname.value = this._prev_trackname;
+      app.author.value = this._prev_author;
+
+      let map_w = app.track_tiles.width;
+      let map_h = app.track_tiles.height;
+      app.track_tiles.putTileData(this._prev_track_tiles, 0, 0, map_w, map_h);
+    }
+  },
+
+  _parseTrackTiles: function(app, lines, linenum) {
+//    console.log("ImportTrack_Operator._parseTrackTiles()");
+
+    this._prev_trackname = app.trackname.value;
+    this._prev_author = app.author.value;
+
+    let map_w = app.track_tiles.width;
+    let map_h = app.track_tiles.height;
+    this._prev_track_tiles = app.track_tiles.getTileData(0, 0, map_w, map_h);
+
+    let track_tiles = [];
+    track_tiles.length = map_w*map_h;
+
+    for(let row = 0; row < map_h; row++) {
+      let currline = lines[linenum].trim();
+      if(currline.length != map_w) {
+        alert("Error on line "+(linenum+1)+": Track definition must have exactly "
+          +map_w+" tile symbols on every line.");
+        return linenum;
+      }
+
+      for(let col=0; col < map_w; col++) {
+        let tile_idx = app.tileset.tileIndexOf(currline[col]);
+        if(tile_idx < 0) {
+          alert("Invalid tile symbol '"+currline[col]+"' on line "+(linenum+1)+".");
+          tile_idx = 0;
+        }
+        track_tiles[map_w*row+col] = tile_idx;
+      }
+      linenum++;
+    }
+
+    app.track_tiles.putTileData(track_tiles, 0, 0, map_w, map_h);
+
+    return linenum;
   }
-  return lines.join('\n');
+};
+
+
+/* ImportBillboards_Operator class
+*/
+ImportBillboards_Operator = function(text, mode = "") {
+  this._mode = mode;
+  this._prev_billboards = [];
+
+  this._text = text.slice();
 }
 
-PgpEditUI.prototype.billboardsToString = function() {
-  let lines = [];
-  lines.push("[billboards]");
-  let num_bboards = this._pgpedit_data.billboards.numBillboardObjects();
-  for(let idx = 0; idx < num_bboards; idx++) {
-    let billboard = this._pgpedit_data.billboards.getBillboardObject(idx);
-    lines.push(billboard.model_index+","+billboard.x+","+billboard.y);
+ImportBillboards_Operator.prototype = {
+  init: function(app) {
+  },
+
+  poll: function(app) {
+    return (this._mode == "" || this._mode.indexOf(app.view.mode) >= 0);
+  },
+
+  execute: function(app) {
+//    console.log("ImportBillboards_Operator.execute()");
+
+    let lines = this._text.split('\n');
+    let linenum = 0;
+    let currline = lines[linenum].trim();
+
+    this._saveBillboards(app);
+    app.billboards.clearBillboardObjects();
+
+    while(linenum < lines.length) {
+      currline = lines[linenum].trim();
+      if(currline.length > 0) {
+        if(currline == "[billboards]") {
+          linenum = this._parseBillboards(app, lines, linenum+1);
+        }
+      }
+      linenum++;
+    }
+
+    return true;
+  },
+
+  revert: function(app) {
+//    console.log("ImportBillboards_Operator.revert()");
+
+    app.billboards.clearBillboardObjects();
+
+    for(let idx = 0; idx < this._prev_billboards.length; idx++) {
+      let num_billboards = app.billboards.numBillboardObjects();
+      let billboard = app.billboards.addBillboardObject(num_billboards);
+      billboard.model_index = this._prev_billboards[idx].model_index;
+      billboard.x = this._prev_billboards[idx].x;
+      billboard.y = this._prev_billboards[idx].y;
+    }
+  },
+
+  _saveBillboards: function(app) {
+    this._prev_billboards.length = app.billboards.numBillboardObjects();
+    for(let idx = 0; idx < app.billboards.numBillboardObjects(); idx++) {
+      let billboard = app.billboards.getBillboardObject(idx);
+      this._prev_billboards[idx] = {
+        model_index: billboard.model_index,
+        x: billboard.x,
+        y: billboard.y
+      };
+    }
+  },
+
+  _parseBillboards: function(app, lines, linenum) {
+//    console.log("ImportBillboards_Operator._parseBillboards()");
+
+    while(linenum < lines.length) {
+      let errorFlag = false;
+      let currline = lines[linenum].trim();
+      if(currline.length > 0) {
+        if(currline[0] == "[") {
+          break;
+        }
+        values = currline.split(",")
+        if(values.length == 3) {
+          for(let idx = 0; idx < values.length; idx++) {
+            values[idx] = parseInt(values[idx]);
+            if(isNaN(values[idx])) {
+              errorFlag = true;
+              break;
+            }
+          }
+          let idx = app.billboards.numBillboardObjects();
+          let billboard = app.billboards.addBillboardObject(idx);
+          billboard.model_index = values[0];
+          billboard.x = values[1];
+          billboard.y = values[2];
+        }
+        else {
+          errorFlag = true;
+        }
+      }
+      if(errorFlag) {
+        alert("Error on line "+(linenum+1)+": Invalid billboard definition.");
+      }
+      linenum++;
+    }
+
+//    console.log("Imported "+app.billboards.numBillboardObjects()+" billboards.");
+
+    return linenum;
   }
-  return lines.join('\n');
+};
+
+
+/* ImportWaypoints_Operator class
+*/
+ImportWaypoints_Operator = function(text, mode = "") {
+  this._mode = mode;
+  this._prev_waypoints = [];
+
+  this._text = text.slice();
 }
 
+ImportWaypoints_Operator.prototype = {
+  init: function(app) {
+  },
+
+  poll: function(app) {
+    return (this._mode == "" || this._mode.indexOf(app.view.mode) >= 0);
+  },
+
+  execute: function(app) {
+//    console.log("ImportWaypoints_Operator.execute()");
+
+    let lines = this._text.split('\n');
+    let linenum = 0;
+    let currline = lines[linenum].trim();
+
+    this._saveWaypoints(app);
+    app.waypoints.clearWaypoints();
+
+    while(linenum < lines.length) {
+      currline = lines[linenum].trim();
+      if(currline.length > 0) {
+        if(currline == "[waypoints]") {
+          linenum = this._parseWaypoints(app, lines, linenum+1);
+        }
+      }
+      linenum++;
+    }
+
+    return true;
+  },
+
+  revert: function(app) {
+//    console.log("ImportWaypoints_Operator.revert()");
+
+    app.waypoints.clearWaypoints();
+
+    for(let idx = 0; idx < this._prev_waypoints.length; idx++) {
+      let waypoint = app.waypoints.addWaypoint();
+      waypoint.radius = this._prev_waypoints[idx].radius;
+      waypoint.speed = this._prev_waypoints[idx].speed;
+      waypoint.x = this._prev_waypoints[idx].x;
+      waypoint.y = this._prev_waypoints[idx].y;
+    }
+  },
+
+  _saveWaypoints: function(app) {
+    this._prev_waypoints.length = app.waypoints.numWaypoints();
+    for(let idx = 0; idx < app.waypoints.numWaypoints(); idx++) {
+      let waypoint = app.waypoints.getWaypoint(idx);
+      this._prev_waypoints[idx] = {
+        radius: waypoint.radius,
+        speed: waypoint.speed,
+        x: waypoint.x,
+        y: waypoint.y
+      };
+    }
+  },
+
+  _parseWaypoints: function(app, lines, linenum) {
+//    console.log("ImportWaypoints_Operator._parseWaypoints()");
+
+    while(linenum < lines.length) {
+      let errorFlag = false;
+      let currline = lines[linenum].trim();
+      if(currline.length > 0) {
+        if(currline[0] == "[") {
+          linenum--;
+          break;
+        }
+        values = currline.split(",")
+        if(values.length == 5) {
+          for(let idx = 0; idx < values.length; idx++) {
+            values[idx] = parseInt(values[idx]);
+            if(isNaN(values[idx])) {
+              errorFlag = true;
+              break;
+            }
+          }
+          let idx = app.waypoints.numWaypoints();
+          let waypoint = app.waypoints.addWaypoint(idx);
+          waypoint.x = values[0];
+          waypoint.y = values[1];
+          waypoint.radius = values[2];
+          waypoint.speed = Math.min(values[3], 100);
+          waypoint.checkpont = (values[4] != 0);
+        }
+        else {
+          errorFlag = true;
+        }
+      }
+      if(errorFlag) {
+        alert("Error on line "+(linenum+1)+": Invalid waypoint definition.");
+      }
+      linenum++;
+    }
+
+//    console.log("Imported "+app.waypoints.numWaypoints()+" waypoints.");
+
+    return linenum;
+  }
+};
 
 
-let pgpedit_data = new PgpEdit_Data(pgpedit_settings);
-let pgpedit_ui = new PgpEditUI(pgpedit_data);
-pgpedit_ui.init(pgpedit_settings);
+/* ExportAsZip_Operator class
+*/
+function ExportAsZip_Operator(mode = "") {
+  this._mode = mode;
+}
+
+ExportAsZip_Operator.prototype = {
+  _BKGND_COLOR: "#ff00ff",
+  _COLORS_MAX: 214,
+
+  init: function(app) {
+  },
+
+  poll: function(app) {
+    return (this._mode == "" || this._mode.indexOf(app.view.mode) >= 0);
+  },
+
+  execute: function(app) {
+//    console.log("ExportAsZip_Operator.execute()");
+
+    let zip = new JSZip();
+
+    let track_str = this._trackToString(app);
+    zip.file("track.txt", track_str);
+
+    if(app.waypoints.numWaypoints() > 0 || app.billboards.numBillboardObjects() > 0) {
+      let waypoints_str = this._waypointsToString(app);
+      let billboards_str = this._billboardsToString(app);
+      zip.file("objects.txt", [waypoints_str, billboards_str].join("\n"));
+    }
+
+    let color_map = this._createColorMap(app);
+    for(let idx = 0; idx < app.textures.length; idx++) {
+      let tex = app.textures[idx];
+      let dataurl = this._textureToDataURL(app, color_map, tex);
+      zip.file(tex.name+".bmp", dataurl.split('base64,')[1], {base64: true});
+    }
+
+    zip.generateAsync({type:"blob"}).then(function(content) {
+      let link = document.createElement('a');
+      link.setAttribute("download", "track.zip");
+      link.href = window.URL.createObjectURL(content);
+      document.body.appendChild(link);
+
+      let event = new MouseEvent('click');
+      link.dispatchEvent(event);
+
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(link.href);
+    });
+
+    // No undo
+    return false;
+  },
+
+  revert: function(app) {
+  },
+
+  _trackToString: function(app) {
+    let lines = [app.trackname.value, app.author.value];
+
+    let w = app.track_tiles.width;
+    let h = app.track_tiles.height;
+    let tile_data = app.track_tiles.getTileData(0, 0, w, h);
+
+    for(let idx = 0; idx < tile_data.length; idx += w) {
+      let arr = tile_data.slice(idx, idx+w).map(x => app.tileset.getTileSymbol(x));
+      lines.push(arr.join(""));
+    }
+//    console.log(lines.join('\n'));
+//    console.assert(lines.length == 2+h, "Assertion failed");
+
+    return lines.join('\n');
+  },
+
+  _billboardsToString: function(app) {
+    let lines = [];
+    lines.push("[billboards]");
+    let num_billboards = app.billboards.numBillboardObjects();
+    for(let idx = 0; idx < num_billboards; idx++) {
+      let billboard = app.billboards.getBillboardObject(idx);
+      lines.push(billboard.model_index+","+billboard.x+","+billboard.y);
+    }
+    return lines.join('\n');
+  },
+
+  _waypointsToString: function(app) {
+    let lines = [];
+    lines.push("[waypoints]");
+    let num_waypoints = app.waypoints.numWaypoints();
+    for(let idx = 0; idx < num_waypoints; idx++) {
+      let waypoint = app.waypoints.getWaypoint(idx);
+      lines.push(waypoint.x+","+waypoint.y+","+waypoint.radius+","+waypoint.speed+","+(waypoint.checkpoint ? 1 : 0));
+    }
+    return lines.join('\n');
+  },
+
+  _createColorMap: function(app) {
+    let color_map = new Map();
+
+    for(let idx = 0; idx < app.textures.length; idx++) {
+      let w = app.textures[idx].width;
+      let h = app.textures[idx].height;
+      let rgb_data = app.textures[idx].getRGBData(0, 0, w, h);
+//      console.log({w: w, h: h, data: rgb_data});
+      for(let idx = 0; idx < w*h; idx++) {
+        let r = rgb_data[3*idx+0];
+        let g = rgb_data[3*idx+1];
+        let b = rgb_data[3*idx+2];
+        let color = this._RGBToHtmlColor(r, g, b);
+        color_map.set(color, 0);
+      }
+    }
+
+    let idx = 1;
+    for(let key of color_map.keys()) {
+      if(key != this._BKGND_COLOR) {
+        if(idx < this._COLORS_MAX) {
+          color_map.set(key, idx);
+        }
+        else {
+          color_map.set(key, 0);
+        }
+        idx++;
+      }
+    }
+//    console.log(this._color_map);
+    if(idx > this._COLORS_MAX) {
+      alert("Warning: Texture image has more than "+this._COLORS_MAX+" colors.");
+    }
+
+    return color_map;
+  },
+
+  _textureToDataURL: function(app, color_map, texture) {
+    let color_array = [];
+    let len = 0;
+    for(let val of color_map.values()) {
+      len = Math.max(len, val);
+    }
+    color_array.length = len;
+    for(let [color, idx] of color_map) {
+      color_array[idx] = color;
+    }
+    color_array[0] = this._BKGND_COLOR;
+//    console.log(color_array);
+
+    let color_table = "";
+    for(let idx = 0; idx < color_array.length; idx++) {
+      let color = color_array[idx];
+      let r = parseInt(color.substring(1, 3), 16);
+      let g = parseInt(color.substring(3, 5), 16);
+      let b = parseInt(color.substring(5, 7), 16);
+      color_table += this._int32ToString((r<<16)+(g<<8)+b);
+    }
+
+    // Color header:
+    let color_header = this._int32ToString(0x73524742);   // color space type, default "sRGB" (0x73524742)
+    for(let c = 0; c < 16; c++) {
+      color_header += this._int32ToString(0);
+    }
+
+    // Info header:
+    let img_w = texture.width;
+    let img_h = texture.height;
+    let bpp = 8;
+    let padded_w = (img_w+3)&0xfffffffc;
+    let bpp_bytes = ((bpp+7)/8)|0;
+    let info_header_len = 40+color_header.length;
+    let info_header = this._int32ToString(40+color_header.length);   // Size of this header
+    info_header += this._int32ToString(img_w);   // bitmap width in pixels
+    info_header += this._int32ToString(img_h);   // bitmap height in pixels
+    info_header += this._int16ToString(1);   // number of color planes (must be 1)
+    info_header += this._int16ToString(bpp);   // number of bits per pixel
+    info_header += this._int32ToString(0);   // compression method (0 - none)
+    info_header += this._int32ToString(padded_w*img_h*bpp_bytes);   // size of the raw bitmap data (can be 0 for uncompressed images)
+   info_header += this._int32ToString(0);   // x pixels per meter
+    info_header += this._int32ToString(0);   // y pixels per meter
+    info_header += this._int32ToString(color_table.length/4);   // No. color indexes in the color table. Use 0 for the max number of colors allowed by bit_count
+    info_header += this._int32ToString(0);   // No. of colors used for displaying the bitmap. If 0 all colors are required
+
+    // File header:
+    let data_offset = 14+info_header_len+color_table.length;
+    let pxlarray_size = padded_w*img_h*bpp_bytes;
+    let file_size = data_offset+pxlarray_size;
+    let file_header = this._int16ToString(0x4d42);   // file type, always "BM" which is 0x4D42
+    file_header += this._int32ToString(file_size);   // file size in bytes
+    file_header += this._int16ToString(0);   // Reserved, always 0
+    file_header += this._int16ToString(0);   // Reserved, always 0
+    file_header += this._int32ToString(data_offset);   // start position of pixel data from the beginning of the file
+
+    // Pixel array:
+    let rgb_data = texture.getRGBData(0, 0, img_w, img_h);
+    let pxlarray = "";
+    for(let y = img_h-1; y >= 0 ; y--) {
+      let offset = y*3*img_w;
+      let x = 0;
+      while(x < img_w) {
+        let r = rgb_data[offset+3*x+0];
+        let g = rgb_data[offset+3*x+1];
+        let b = rgb_data[offset+3*x+2];
+        let color = this._RGBToHtmlColor(r, g, b);
+        pxlarray += (color_map.has(color)) ? 
+          String.fromCharCode(color_map.get(color)) : 
+          String.fromCharCode(0);
+        x++;
+      }
+      while(x < padded_w) {
+        pxlarray += String.fromCharCode(0);
+        x++;
+      }
+    }
+
+    return "data:image/bmp;base64,"+btoa(file_header+info_header+color_header+color_table+pxlarray);
+  },
+
+  _RGBToHtmlColor: function(r, g, b) {
+    r_str = (r < 0x10) ? "0"+r.toString(16) : r.toString(16);
+    g_str = (g < 0x10) ? "0"+g.toString(16) : g.toString(16);
+    b_str = (b < 0x10) ? "0"+b.toString(16) : b.toString(16);
+    return "#"+r_str+g_str+b_str;
+  },
+
+  _int16ToString: function(val) {
+    let arr = [val, (val>>8)];
+    return arr.map(item => String.fromCharCode(item&0xff)).join("");
+  },
+
+  _int32ToString: function(val) {
+    let arr = [val, (val>>8), (val>>16), (val>>24)];
+    return arr.map(item => String.fromCharCode(item&0xff)).join("");
+  }
+};
+
+
+/* loadTextures_Operator class
+*/
+function loadTextures_Operator(rgb_data, w, h, mode = "") {
+  this._mode = mode;
+  this._width = w;
+  this._height = h;
+  this._rgb_data = rgb_data;
+}
+
+loadTextures_Operator.prototype = {
+  init: function(app) {
+  },
+
+  poll: function(app) {
+    return (this._mode == "" || this._mode.indexOf(app.view.mode) >= 0);
+  },
+
+  execute: function(app) {
+    let tex_img = app.texture_image;
+    if(this._width != tex_img.width || this._height != tex_img.height) {
+      alert("Image size must be "+tex_img.width+"x"+tex_img.height+" pixels.");
+    }
+    else {
+      for(let tex_idx = 0; tex_idx < tex_img.rects.length; tex_idx++) {
+        let tex = app.textures[tex_idx];
+        let rect = tex_img.rects[tex_idx];
+
+        let tex_rgb_data = [];
+        tex_rgb_data.length = 3*rect.width*rect.height;
+        for(let idx = 0; idx < rect.width*rect.height; idx++) {
+          let x = idx%rect.width;
+          let y = (idx/rect.width)|0;
+          let src_idx = 3*(this._width*(rect.y+y)+rect.x+x);
+          let dest_idx = 3*(rect.width*y+x);
+          tex_rgb_data[dest_idx] = this._rgb_data[src_idx];
+          tex_rgb_data[dest_idx+1] = this._rgb_data[src_idx+1];
+          tex_rgb_data[dest_idx+2] = this._rgb_data[src_idx+2];
+        }
+        let autocrop = (idx < 6) ? false : true;
+        tex.fromRGBData(tex_rgb_data, rect.width, rect.height, autocrop);
+      }
+    }
+
+    // No undo
+    return false;
+  },
+
+  revert: function(app) {
+  },
+};
+
+
+let pgpedit_app = new PgpEdit_Application();
+pgpedit_app.init(pgpedit_settings);
