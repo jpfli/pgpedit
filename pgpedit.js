@@ -867,7 +867,8 @@ PgpEdit_View.prototype = {
     this._tilemap_canvas.addEventListener("mouseout", this);
 
     window.addEventListener("mouseup", this);
-    window.addEventListener("keypress", this);
+    window.addEventListener("keydown", this);
+    window.addEventListener("keyup", this);
 
     document.getElementById("mode-select").addEventListener("change", this);
     document.getElementById("billboard-droplist").addEventListener("change", this);
@@ -959,18 +960,34 @@ PgpEdit_View.prototype = {
         }
       }
     }
-    else if(evt.type == "keypress") {
-      if(evt.ctrlKey && evt.charCode == "z".charCodeAt(0)) {
+    else if(evt.type == "keydown") {
+//      console.log(evt);
+      if(evt.ctrlKey && evt.key == "z") {
         this._pgpedit_app.undo();
       }
-      if(evt.ctrlKey && evt.charCode == "Z".charCodeAt(0)) {
+      else if(evt.ctrlKey && (evt.key == "Z" || evt.key == "y")) {
         this._pgpedit_app.redo();
+      }
+      else if(evt.key == "Shift" && this._mode == "TILES") {
+        this._tilemap_canvas.style.cursor = "pointer";
+        this._tilemap_canvas_dirty = true;
+        this._tilebrush_cursor_visible = false;
+      }
+    }
+    else if(evt.type == "keyup") {
+      if(evt.key == "Shift" && this._mode == "TILES") {
+        this._tilemap_canvas.style.cursor = "default";
       }
     }
     else if(evt.type == "click") {
       if(evt.target.id == "savetrack-button") {
-        let op = new ExportAsZip_Operator();
-        this._pgpedit_app.executeOperator(op);
+        if(this._pgpedit_app.trackname.value.length > 0) {
+          let op = new ExportAsZip_Operator();
+          this._pgpedit_app.executeOperator(op);
+        }
+        else {
+          alert("Track name is empty");
+        }
       }
     }
     else if(evt.type == "load") {
@@ -1065,11 +1082,19 @@ PgpEdit_View.prototype = {
   onBillboardsUpdated: function() {
 //    console.log("PgpEdit_View.onBillboardsUpdated()");
 
+    let num_billboards = this._pgpedit_app.billboards.numBillboardObjects();
+    let str = "Billboards: "+num_billboards+"/"+this._BBRD_MAX_NUM;
+    document.getElementById("numbillboards-label").innerHTML = str;
+
     this._tilemap_canvas_dirty = true;
   },
 
   onWaypointsUpdated: function() {
 //    console.log("PgpEdit_View.onWaypointsUpdated()");
+
+    let num_waypoints = this._pgpedit_app.waypoints.numWaypoints();
+    let str = "Waypoints: "+num_waypoints+"/"+this._WP_MAX_NUM;
+    document.getElementById("numwaypoints-label").innerHTML = str;
 
     this._tilemap_canvas_dirty = true;
 
@@ -1135,6 +1160,7 @@ PgpEdit_View.prototype = {
           let rect = this._tileset_selection_rect;
           this._drawBoxSelect(this._tilemap_canvas, rect.x, rect.y, rect.w, rect.h);
         }
+
         if(this._tilebrush_cursor_visible) {
           let canvas = this._tilemap_canvas;
           let mouse = this._canvasCoordinatesFromMouse(canvas, evt);
@@ -1398,6 +1424,109 @@ PgpEdit_View.prototype = {
     }
   },
 
+  _onTileModeMousedown: function(evt) {
+    if(evt.button == 0) {
+      if(evt.shiftKey) {
+        this._tilemap_selection_started = true;
+
+        let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
+        this._tileset_selection_rect.x = mouse.x;
+        this._tileset_selection_rect.y = mouse.y;
+        this._tileset_selection_rect.w = 0;
+        this._tileset_selection_rect.h = 0;
+
+        this._tilemap_canvas_dirty = true;
+        this._tilebrush_cursor_visible = false;
+      }
+      else {
+        let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
+        let x = mouse.x+this._TILE_SIZE*0.5*(this._tilebrush.width+1);
+        x = ((x/this._TILE_SIZE)|0)-this._tilebrush.width;
+        let y = mouse.y+this._TILE_SIZE*0.5*(this._tilebrush.height+1);
+        y = ((y/this._TILE_SIZE)|0)-this._tilebrush.height;
+
+        let w = this._tilebrush.width;
+        let h = this._tilebrush.height;
+        let brush_data = this._tilebrush.tile_data;
+        let track_data = this._pgpedit_app.track_tiles.getTileData(x, y, w, h);
+        for(let idx = 0; idx < w*h; idx++) {
+          if(brush_data[idx] != track_data[idx]) {
+            // Only draw brush when it actually differs from track tiles beneath
+            let op = new putTileData_Operator(brush_data, x, y, w, h, "TILES");
+            this._pgpedit_app.executeOperator(op);
+            break;
+          }
+        }
+      }
+    }
+  },
+
+  _onTileModeMousemove: function(evt) {
+    if(evt.buttons&1) {
+      if(this._tilemap_selection_started) {
+        let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
+        this._tileset_selection_rect.w = mouse.x-this._tileset_selection_rect.x;
+        this._tileset_selection_rect.h = mouse.y-this._tileset_selection_rect.y;
+
+        this._tilemap_canvas_dirty = true;
+        this._tilebrush_cursor_visible = false;
+      }
+      else if(this._tilemap_mousedown_flag) {
+        let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
+        let x = mouse.x+this._TILE_SIZE*0.5*(this._tilebrush.width+1);
+        x = ((x/this._TILE_SIZE)|0)-this._tilebrush.width;
+        let y = mouse.y+this._TILE_SIZE*0.5*(this._tilebrush.height+1);
+        y = ((y/this._TILE_SIZE)|0)-this._tilebrush.height;
+
+        let w = this._tilebrush.width;
+        let h = this._tilebrush.height;
+        let brush_data = this._tilebrush.tile_data;
+        let track_data = this._pgpedit_app.track_tiles.getTileData(x, y, w, h);
+        for(let idx = 0; idx < w*h; idx++) {
+          let dy = (idx/w)|0;
+          let dx = idx%w;
+          if(x+dx >= 0 && x+dx < this._pgpedit_app.track_tiles.width && y+dy >= 0 && y+dy < this._pgpedit_app.track_tiles.height ) {
+            if(brush_data[idx] != track_data[idx]) {
+              // Only draw brush when it actually differs from track tiles
+              let op = new putTileData_Operator(brush_data, x, y, w, h, "TILES");
+              this._pgpedit_app.executeOperator(op);
+              break;
+            }
+          }
+        }
+      }
+    }
+    else {
+      this._tilemap_canvas_dirty = true;
+      if(evt.shiftKey) {
+        this._tilebrush_cursor_visible = false;
+      }
+      else {
+        this._tilebrush_cursor_visible = true;
+      }
+    }
+  },
+
+  _onTileModeMouseup: function(evt) {
+    let canvas = this._tilemap_canvas;
+
+    if(evt.button == 0 && this._tilemap_selection_started) {
+      this._tilemap_selection_started = false;
+
+      let rect = this._tileset_selection_rect;
+      let coords = this._rectangleToTileCoordinates(rect.x, rect.y, rect.w, rect.h);
+      let data_w = 1+coords.x2-coords.x1;
+      let data_h = 1+coords.y2-coords.y1;
+      this._tilebrush.tile_data = this._pgpedit_app.track_tiles.getTileData(coords.x1, coords.y1, data_w, data_h);
+      this._tilebrush.width = data_w;
+      this._tilebrush.height = data_h;
+      this._drawTilebrushView();
+
+      this._tilemap_canvas_dirty = true;
+      this._tilebrush_cursor_visible = true;
+    }
+  },
+
   _billboardModeEventHandler: function(evt) {
     if(evt.type == "mousedown") {
       this._onBillboardModeMousedown(evt);
@@ -1572,109 +1701,6 @@ PgpEdit_View.prototype = {
     if(this._waypoint_grabbed) {
       this._waypoint_grabbed = false;
       this._waypoint_move_op = null;
-    }
-  },
-
-  _onTileModeMousedown: function(evt) {
-    if(evt.button == 0) {
-      if(evt.shiftKey) {
-        this._tilemap_selection_started = true;
-
-        let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
-        this._tileset_selection_rect.x = mouse.x;
-        this._tileset_selection_rect.y = mouse.y;
-        this._tileset_selection_rect.w = 0;
-        this._tileset_selection_rect.h = 0;
-
-        this._tilemap_canvas_dirty = true;
-        this._tilebrush_cursor_visible = false;
-      }
-      else {
-        let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
-        let x = mouse.x+this._TILE_SIZE*0.5*(this._tilebrush.width+1);
-        x = ((x/this._TILE_SIZE)|0)-this._tilebrush.width;
-        let y = mouse.y+this._TILE_SIZE*0.5*(this._tilebrush.height+1);
-        y = ((y/this._TILE_SIZE)|0)-this._tilebrush.height;
-
-        let w = this._tilebrush.width;
-        let h = this._tilebrush.height;
-        let brush_data = this._tilebrush.tile_data;
-        let track_data = this._pgpedit_app.track_tiles.getTileData(x, y, w, h);
-        for(let idx = 0; idx < w*h; idx++) {
-          if(brush_data[idx] != track_data[idx]) {
-            // Only draw brush when it actually differs from track tiles beneath
-            let op = new putTileData_Operator(brush_data, x, y, w, h, "TILES");
-            this._pgpedit_app.executeOperator(op);
-            break;
-          }
-        }
-      }
-    }
-  },
-
-  _onTileModeMousemove: function(evt) {
-    if(evt.buttons&1) {
-      if(this._tilemap_selection_started) {
-        let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
-        this._tileset_selection_rect.w = mouse.x-this._tileset_selection_rect.x;
-        this._tileset_selection_rect.h = mouse.y-this._tileset_selection_rect.y;
-
-        this._tilemap_canvas_dirty = true;
-        this._tilebrush_cursor_visible = false;
-      }
-      else if(this._tilemap_mousedown_flag) {
-        let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
-        let x = mouse.x+this._TILE_SIZE*0.5*(this._tilebrush.width+1);
-        x = ((x/this._TILE_SIZE)|0)-this._tilebrush.width;
-        let y = mouse.y+this._TILE_SIZE*0.5*(this._tilebrush.height+1);
-        y = ((y/this._TILE_SIZE)|0)-this._tilebrush.height;
-
-        let w = this._tilebrush.width;
-        let h = this._tilebrush.height;
-        let brush_data = this._tilebrush.tile_data;
-        let track_data = this._pgpedit_app.track_tiles.getTileData(x, y, w, h);
-        for(let idx = 0; idx < w*h; idx++) {
-          let dy = (idx/w)|0;
-          let dx = idx%w;
-          if(x+dx >= 0 && x+dx < this._pgpedit_app.track_tiles.width && y+dy >= 0 && y+dy < this._pgpedit_app.track_tiles.height ) {
-            if(brush_data[idx] != track_data[idx]) {
-              // Only draw brush when it actually differs from track tiles
-              let op = new putTileData_Operator(brush_data, x, y, w, h, "TILES");
-              this._pgpedit_app.executeOperator(op);
-              break;
-            }
-          }
-        }
-      }
-    }
-    else {
-      this._tilemap_canvas_dirty = true;
-      if(evt.shiftKey) {
-        this._tilebrush_cursor_visible = false;
-      }
-      else {
-        this._tilebrush_cursor_visible = true;
-      }
-    }
-  },
-
-  _onTileModeMouseup: function(evt) {
-    let canvas = this._tilemap_canvas;
-
-    if(evt.button == 0 && this._tilemap_selection_started) {
-      this._tilemap_selection_started = false;
-
-      let rect = this._tileset_selection_rect;
-      let coords = this._rectangleToTileCoordinates(rect.x, rect.y, rect.w, rect.h);
-      let data_w = 1+coords.x2-coords.x1;
-      let data_h = 1+coords.y2-coords.y1;
-      this._tilebrush.tile_data = this._pgpedit_app.track_tiles.getTileData(coords.x1, coords.y1, data_w, data_h);
-      this._tilebrush.width = data_w;
-      this._tilebrush.height = data_h;
-      this._drawTilebrushView();
-
-      this._tilemap_canvas_dirty = true;
-      this._tilebrush_cursor_visible = true;
     }
   },
 
@@ -2009,6 +2035,22 @@ PgpEdit_Application.prototype = {
     this.billboards.setActiveModelIndex(0);
 //    console.log(this.billboards.numBillboardModels()+" BilboardModels added");
 
+    // Put tiles for starting straight
+    let tile_data = [];
+    tile_data.length = 3*10;
+    for(let idx = 0; idx < 10; idx++) {
+      tile_data[3*idx] = 1;
+      tile_data[3*idx+1] = 2;
+      tile_data[3*idx+2] = 3;
+    }
+    tile_data[3] = 6;
+    tile_data[4] = 7;
+    tile_data[5] = 8;
+    this._track_tiles.putTileData(tile_data, 0, 14, 3, 10);
+
+    // Set initial track name and author
+    this._trackname.value = "mytrack";
+    this._author.value = "myname";
 
     this._view.init(settings);
   },
@@ -2932,20 +2974,25 @@ ExportAsZip_Operator.prototype = {
 
     let zip = new JSZip();
 
+    // Use track name as the folder name, but replace special chars with '_' and cut to 8 chars
+    let foldername = app.trackname.value;
+    foldername = foldername.replace(/[^a-zA-Z0-9]/g,'_').replace(/_{2,}/g,'_').slice(0,8);
+    let folder = zip.folder("pgpdata/tracks/"+foldername);
+
     let track_str = this._trackToString(app);
-    zip.file("track.txt", track_str);
+    folder.file("track.txt", track_str);
 
     if(app.waypoints.numWaypoints() > 0 || app.billboards.numBillboardObjects() > 0) {
       let waypoints_str = this._waypointsToString(app);
       let billboards_str = this._billboardsToString(app);
-      zip.file("objects.txt", [waypoints_str, billboards_str].join("\n"));
+      folder.file("objects.txt", [waypoints_str, billboards_str].join("\n"));
     }
 
     let color_map = this._createColorMap(app);
     for(let idx = 0; idx < app.textures.length; idx++) {
       let tex = app.textures[idx];
       let dataurl = this._textureToDataURL(app, color_map, tex);
-      zip.file(tex.name+".bmp", dataurl.split('base64,')[1], {base64: true});
+      folder.file(tex.name+".bmp", dataurl.split('base64,')[1], {base64: true});
     }
 
     zip.generateAsync({type:"blob"}).then(function(content) {
