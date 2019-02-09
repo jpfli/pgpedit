@@ -106,8 +106,8 @@
         </div>
       </div>
       <div class="panelrow">
-        Speed Limit:
-        <div class="textprop" title="Target speed for NPC vehicles [0..100]">
+        Target Speed:
+        <div class="textprop" title="Target speed for computer players, when driving towards this waypoint [0..100]">
           <input id="speed-textinput" type="text" class="textprop" style="width: 100%;" />
         </div>
       </div>
@@ -140,6 +140,18 @@
         Load<input id="loadtrack-fileinput" type="file" name="file" style="display: none" />
       </button><button id="savetrack-button" type="button" class="button" style="width: 50%;" title="Save track, objects and textures in a zip file">
         Save</button>
+    </div>
+
+    <hr>
+
+    <div id="numbillboards-label" class="panelrow">
+      Billboards:
+    </div>
+    <div id="numwaypoints-label" class="panelrow">
+      Waypoints:
+    </div>
+    <div class="panelrow">
+      Use Ctrl-Z to undo, Ctrl-Shift-Z or Ctrl-Y to redo. Hold Shift key to activate tilemap select-mode.
     </div>
 
   </div>
