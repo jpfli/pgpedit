@@ -806,7 +806,7 @@ function PgpEdit_View(pgpedit_app) {
   this._tilebrush = {width: 1, height: 1, tile_data: [0]};
   this._tilebrush_lastpos = null;
   this._prop_bindings = new Map();
-  this._tileset_selection_rect = {x: 0, y: 0, w: 0, h: 0};
+  this._selection_rect = {x: 0, y: 0, w: 0, h: 0};
   this._tileset_mousedown_flag = false;
   this._tilemap_mousedown_flag = false;
   this._tilemap_selection_started = false;
@@ -1153,25 +1153,25 @@ PgpEdit_View.prototype = {
     this._drawUpdatedTiles(this._tilemap_canvas);
 
     if(this._mode == "TILES") {
-//      if(this._tilemap_canvas_dirty) {
-//        this._tilemap_canvas_dirty = false;
+      if(this._tilemap_mousedown_flag && this._tilemap_selection_started) {
+        let rect = this._selection_rect;
+        this._drawBoxSelect(this._tilemap_canvas, rect.x, rect.y, rect.w, rect.h);
+      }
 
-        if(this._tilemap_mousedown_flag && this._tilemap_selection_started) {
-          let rect = this._tileset_selection_rect;
-          this._drawBoxSelect(this._tilemap_canvas, rect.x, rect.y, rect.w, rect.h);
-        }
+      if(this._tilebrush_cursor_visible) {
+        let canvas = this._tilemap_canvas;
+        let mouse = this._canvasCoordinatesFromMouse(canvas, evt);
+        let x = mouse.x+this._TILE_SIZE*0.5*(this._tilebrush.width+1);
+        x = this._TILE_SIZE*(((x/this._TILE_SIZE)|0)-this._tilebrush.width);
+        let y = mouse.y+this._TILE_SIZE*0.5*(this._tilebrush.height+1);
+        y = this._TILE_SIZE*(((y/this._TILE_SIZE)|0)-this._tilebrush.height);
+        let brush = this._tilebrush;
+        this._drawTileData(brush.width, brush.height, brush.tile_data, canvas, x, y);
 
-        if(this._tilebrush_cursor_visible) {
-          let canvas = this._tilemap_canvas;
-          let mouse = this._canvasCoordinatesFromMouse(canvas, evt);
-          let x = mouse.x+this._TILE_SIZE*0.5*(this._tilebrush.width+1);
-          x = this._TILE_SIZE*(((x/this._TILE_SIZE)|0)-this._tilebrush.width);
-          let y = mouse.y+this._TILE_SIZE*0.5*(this._tilebrush.height+1);
-          y = this._TILE_SIZE*(((y/this._TILE_SIZE)|0)-this._tilebrush.height);
-          let brush = this._tilebrush;
-          this._drawTileData(brush.width, brush.height, brush.tile_data, canvas, x, y);
-        }
-//      }
+        // Highlight cursor with transparent selection rectangle
+        ctx.fillStyle = this._SELECTION_COLOR;
+        ctx.fillRect(x, y, this._TILE_SIZE*brush.width, this._TILE_SIZE*brush.height);
+      }
 
       this._drawGrid(this._tilemap_canvas, this._TILE_SIZE, this._GRID_COLOR);
     }
@@ -1316,12 +1316,12 @@ PgpEdit_View.prototype = {
         this._tileset_mousedown_flag = true;
 
         let mouse = this._canvasCoordinatesFromMouse(canvas, evt);
-        this._tileset_selection_rect.x = mouse.x;
-        this._tileset_selection_rect.y = mouse.y;
-        this._tileset_selection_rect.w = 0;
-        this._tileset_selection_rect.h = 0;
+        this._selection_rect.x = mouse.x;
+        this._selection_rect.y = mouse.y;
+        this._selection_rect.w = 0;
+        this._selection_rect.h = 0;
 
-        let rect = this._tileset_selection_rect;
+        let rect = this._selection_rect;
         let coords = this._rectangleToTileCoordinates(rect.x, rect.y, rect.w, rect.h);
         let x = this._TILE_SIZE*coords.x1;
         let y = this._TILE_SIZE*coords.y1;
@@ -1340,10 +1340,10 @@ PgpEdit_View.prototype = {
     else if(evt.type == "mousemove") {
       if(this._tileset_mousedown_flag) {
         let mouse = this._canvasCoordinatesFromMouse(canvas, evt);
-        this._tileset_selection_rect.w = mouse.x-this._tileset_selection_rect.x;
-        this._tileset_selection_rect.h = mouse.y-this._tileset_selection_rect.y;
+        this._selection_rect.w = mouse.x-this._selection_rect.x;
+        this._selection_rect.h = mouse.y-this._selection_rect.y;
 
-        let rect = this._tileset_selection_rect;
+        let rect = this._selection_rect;
         let coords = this._rectangleToTileCoordinates(rect.x, rect.y, rect.w, rect.h);
         let x = this._TILE_SIZE*coords.x1;
         let y = this._TILE_SIZE*coords.y1;
@@ -1363,7 +1363,7 @@ PgpEdit_View.prototype = {
       if( evt.button == 0 && this._tileset_mousedown_flag) {
         this._tileset_mousedown_flag = false;
 
-        let rect = this._tileset_selection_rect;
+        let rect = this._selection_rect;
         let coords = this._rectangleToTileCoordinates(rect.x, rect.y, rect.w, rect.h);
         let data_w = 1+coords.x2-coords.x1;
         let data_h = 1+coords.y2-coords.y1;
@@ -1430,10 +1430,10 @@ PgpEdit_View.prototype = {
         this._tilemap_selection_started = true;
 
         let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
-        this._tileset_selection_rect.x = mouse.x;
-        this._tileset_selection_rect.y = mouse.y;
-        this._tileset_selection_rect.w = 0;
-        this._tileset_selection_rect.h = 0;
+        this._selection_rect.x = mouse.x;
+        this._selection_rect.y = mouse.y;
+        this._selection_rect.w = 0;
+        this._selection_rect.h = 0;
 
         this._tilemap_canvas_dirty = true;
         this._tilebrush_cursor_visible = false;
@@ -1465,8 +1465,8 @@ PgpEdit_View.prototype = {
     if(evt.buttons&1) {
       if(this._tilemap_selection_started) {
         let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
-        this._tileset_selection_rect.w = mouse.x-this._tileset_selection_rect.x;
-        this._tileset_selection_rect.h = mouse.y-this._tileset_selection_rect.y;
+        this._selection_rect.w = mouse.x-this._selection_rect.x;
+        this._selection_rect.h = mouse.y-this._selection_rect.y;
 
         this._tilemap_canvas_dirty = true;
         this._tilebrush_cursor_visible = false;
@@ -1513,7 +1513,7 @@ PgpEdit_View.prototype = {
     if(evt.button == 0 && this._tilemap_selection_started) {
       this._tilemap_selection_started = false;
 
-      let rect = this._tileset_selection_rect;
+      let rect = this._selection_rect;
       let coords = this._rectangleToTileCoordinates(rect.x, rect.y, rect.w, rect.h);
       let data_w = 1+coords.x2-coords.x1;
       let data_h = 1+coords.y2-coords.y1;
