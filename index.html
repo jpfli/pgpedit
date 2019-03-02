@@ -124,7 +124,7 @@
     <div class="panelrow">
       Track Name:
       <div class="textprop" title="Track name (max 12 characters)">
-        <input id="trackname-textinput" type="text" class="textprop" maxlength="21" style="width: 100%;" />
+        <input id="trackname-textinput" type="text" class="textprop" maxlength="21" required style="width: 100%;" />
       </div>
     </div>
 
@@ -133,6 +133,11 @@
       <div class="textprop" title="Author's name (max 12 characters)">
         <input id="author-textinput" type="text" class="textprop" maxlength="21" style="width: 100%;" />
       </div>
+    </div>
+
+    <div class="panelrow" style="text-align: center;">
+      </button><button id="physparms-button" type="button" class="button" style="width: 100%;" title="Open a dialog to change physics parameters">
+        Physics Parameters</button>
     </div>
 
     <div class="panelrow" style="text-align: center;">
@@ -161,6 +166,113 @@
   </div>
 </div>
 
+<div id="popup-container" class="popup-background">
+  <div class="popup-dialog" id="myForm">
+    <div class="panelrow">
+      Physics Parameters:
+    </div>
+
+    <div class="panelrow">
+      <span style="display: inline-block; width: 18%; border: var(--row-border)">
+      </span><span style="display: inline-block; width: 18%; padding: 0 5px; border: var(--row-border)">
+        fs:
+      </span><span style="display: inline-block; width: 18%; padding: 0 5px; border: var(--row-border)">
+        fk:
+      </span><span style="display: inline-block; width: 18%; padding: 0 5px; border: var(--row-border)">
+        tract:
+      </span><span style="display: inline-block; width: 18%; padding: 0 5px; border: var(--row-border)">
+        rr:
+      </span>
+    </div>
+
+    <div class="panelrow" style="padding: 0;">
+      <span style="display: inline-block; width: 18%; border: var(--row-border)">
+        Track
+      </span><span style="display: inline-block; width: 18%; padding: 0 5px; border: var(--row-border)">
+        <div class="textprop" title="Static friction (typ. 0.15-1.50)">
+          <input type="text" id="track_fs-textinput" class="textprop" style="width: 100%;" required>
+        </div>
+      </span><span style="display: inline-block; width: 18%; padding: 0 5px; border: var(--row-border)">
+        <div class="textprop" title="Kinetic friction (should be less than or equal to fs)">
+          <input type="text" id="track_fk-textinput" class="textprop" style="width: 100%;" required>
+        </div>
+      </span><span style="display: inline-block; width: 18%; padding: 0 5px; border: var(--row-border)">
+        <div class="textprop" title="Traction constant (or shear strength, typ. 500-2000)">
+          <input type="text" id="track_tract-textinput" class="textprop" style="width: 100%;" required>
+        </div>
+      </span><span style="display: inline-block; width: 18%; padding: 0 5px; border: var(--row-border)">
+        <div class="textprop" title="Rolling resistance (typ. 0.01-0.10)">
+          <input type="text" id="track_rr-textinput" class="textprop" style="width: 100%;" required>
+        </div>
+      </span><button id="track_physparms_reset-button" type="button" class="button" title="Reset to default" style="width: 10%;">
+        &olarr;</button>
+    </div>
+
+    <div class="panelrow" style="padding: 0;">
+      <span style="display: inline-block; width: 18%; border: var(--row-border)">
+        Terrain
+      </span><span style="display: inline-block; width: 18%; padding: 0 5px; border: var(--row-border)">
+        <div class="textprop" title="Static friction (typ. 0.15-1.50)">
+          <input type="text" id="terrain_fs-textinput" class="textprop" style="width: 100%;" required>
+        </div>
+      </span><span style="display: inline-block; width: 18%; padding: 0 5px; border: var(--row-border)">
+        <div class="textprop" title="Kinetic friction (should be less than or equal to fs)">
+          <input type="text" id="terrain_fk-textinput" class="textprop" style="width: 100%;" required>
+        </div>
+      </span><span style="display: inline-block; width: 18%; padding: 0 5px; border: var(--row-border)">
+        <div class="textprop" title="Traction constant (or shear strength, typ. 500-2000)">
+          <input type="text" id="terrain_tract-textinput" class="textprop" style="width: 100%;" required>
+        </div>
+      </span><span style="display: inline-block; width: 18%; padding: 0 5px; border: var(--row-border)">
+        <div class="textprop" title="Rolling resistance (typ. 0.01-0.10)">
+          <input type="text" id="terrain_rr-textinput" class="textprop" style="width: 100%;" required>
+        </div>
+      </span><button id="terrain_physparms_reset-button" type="button" class="button" title="Reset to default" style="width: 10%;">
+        &olarr;</button>
+    </div>
+
+    <div class="panelrow" style="padding: 0;">
+      <span style="display: inline-block; width: 18%; border: var(--row-border)">
+        Edge
+      </span><span style="display: inline-block; width: 18%; padding: 0 5px; border: var(--row-border)">
+        <div class="textprop" title="Static friction (typ. 0.15-1.50)">
+          <input type="text" id="edge_fs-textinput" class="textprop" style="width: 100%;" required>
+        </div>
+      </span><span style="display: inline-block; width: 18%; padding: 0 5px; border: var(--row-border)">
+        <div class="textprop" title="Kinetic friction (should be less than or equal to fs)">
+          <input type="text" id="edge_fk-textinput" class="textprop" style="width: 100%;" required>
+        </div>
+      </span><span style="display: inline-block; width: 18%; padding: 0 5px; border: var(--row-border)">
+        <div class="textprop" title="Traction constant (or shear strength, typ. 500-2000)">
+          <input type="text" id="edge_tract-textinput" class="textprop" style="width: 100%;" required>
+        </div>
+      </span><span style="display: inline-block; width: 18%; padding: 0 5px; border: var(--row-border)">
+        <div class="textprop" title="Rolling resistance (typ. 0.01-0.10)">
+          <input type="text" id="edge_rr-textinput" class="textprop" style="width: 100%;" required>
+        </div>
+      </span><button id="edge_physparms_reset-button" type="button" class="button" title="Reset to default" style="width: 10%;">
+        &olarr;</button>
+    </div>
+
+    <div class="panelrow">&nbsp</div>
+    <div class="panelrow">
+      Examples:
+      <br>
+      -Formula car, asphalt [fs:1.5, fk:1.4, tract:1500, rr:0.02]
+      <br>
+      -Sports car, asphalt [fs:1.0, fk:0.9, tract:1500, rr:0.02]
+      <br>
+      -Rally car, gravel [fs:0.65, fk:0.55, tract:700, rr:0.05]
+      <br>
+      -Rally car, snow [fs:0.30, fk:0.25, tract:1000, rr:0.02]
+    </div>
+
+    <div class="panelrow">
+      <button id="physparms_ok-button" type="button" class="button" style="width: 100%;">
+        Ok</button>
+    </div>
+  </div>
+</div>
 
 
 
