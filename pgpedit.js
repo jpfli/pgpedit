@@ -69,8 +69,57 @@ IntProperty.prototype = {
 
   set value(value) {
 //    console.log("IntProperty.setValue("+value+")");
+    value = parseInt(value);
+    if(!isNaN(value)) { // && this._value != value) {
+      if(this._min >= value) {
+        value = this._min;
+      }
+      else if(this._max <= value) {
+        value = this._max;
+      }
+      this._value = value;
+      this._notifyObservers();
+    }
+  },
 
-    if(this._value != value) {
+  addObserver: function(observer) {
+    this._observers.push(observer);
+    observer.onPropertyUpdated(this);
+  },
+
+  removeObserver: function(observer) {
+    let idx = this._observers.indexOf(observer);
+    if(idx >= 0) {
+      this._observers.splice(idx, 1);
+    }
+  },
+
+  _notifyObservers: function() {
+    for(let idx = 0; idx < this._observers.length; idx++) {
+      this._observers[idx].onPropertyUpdated(this);
+    }
+  }
+};
+
+/* FloatProperty class
+*/
+function FloatProperty(min = -2147483648, max = 2147483647) {
+//  console.log("IntProperty.constructor(min="+min+", max="+max+")");
+
+  this._observers = [];
+  this._min = min;
+  this._max = max;
+  this._value = 0;
+}
+FloatProperty.prototype = {
+  get value() {
+    return this._value;
+  },
+
+  set value(value) {
+//    console.log("FloatProperty.setValue("+value+")");
+    value = parseFloat(value);
+    if(!isNaN(value)) { // && this._value != value) {
       if(this._min >= value) {
         value = this._min;
       }
@@ -299,6 +348,79 @@ Billboards.prototype = {
 //    console.log("Billboards._notifyObservers()");
     for(let idx = 0; idx < this._observers.length; idx++) {
       this._observers[idx].onBillboardsUpdated();
+    }
+  }
+};
+
+
+/* PhysicsParameters class
+*/
+function PhysicsParameters(fs, fk, traction, rr) {
+  this._fs = new FloatProperty(0.0, 10.0);
+  this._fk = new FloatProperty(0.0, 10.0);
+  this._traction = new IntProperty(100, 30000);
+  this._rr = new FloatProperty(0.0, 10.0);
+  this._observers = [];
+
+  this._fs.value = fs;
+  this._fk.value = fk;
+  this._traction.value = traction;
+  this._rr.value = rr;
+
+  this._fs.addObserver(this);
+  this._fk.addObserver(this);
+  this._traction.addObserver(this);
+  this._rr.addObserver(this);
+}
+PhysicsParameters.prototype = {
+  get static_friction() {
+    return this._fs.value;
+  },
+  set static_friction(val) {
+    this._fs.value = val;
+  },
+
+  get kinetic_friction() {
+    return this._fk.value;
+  },
+  set kinetic_friction(value) {
+    this._fk.value = value;
+  },
+
+  get traction_constant() {
+    return this._traction.value;
+  },
+  set traction_constant(value) {
+    this._traction.value = value;
+  },
+
+  get rolling_resistance() {
+    return this._rr.value;
+  },
+  set rolling_resistance(value) {
+    this._rr.value = value;
+  },
+
+  onPropertyUpdated: function() {
+    this._notifyObservers();
+  },
+
+  addObserver: function(observer) {
+    this._observers.push(observer);
+    observer.onPhysicsParametersUpdated();
+  },
+
+  removeObserver: function(observer) {
+    let idx = this._observers.indexOf(observer);
+    if(idx >= 0) {
+      this._observers.splice(idx, 1);
+    }
+  },
+
+  _notifyObservers: function() {
+//    console.log("PhysicsParameters._notifyObservers()");
+    for(let idx = 0; idx < this._observers.length; idx++) {
+      this._observers[idx].onPhysicsParametersUpdated();
     }
   }
 };
@@ -631,10 +753,16 @@ function Waypoint(creator, x = 0, y = 0, radius = 0, speed = 0, checkpoint = tru
   this._creator = creator;
 
   this._checkpoint = checkpoint;
-  this._radius = radius;
-  this._speed = speed;
+  this._radius = new IntProperty(0, 1024);
+  this._speed = new IntProperty(0, 100);
   this._x = x;
   this._y = y;
+
+  this._radius.value = radius;
+  this._speed.value = speed;
+
+  this._radius.addObserver(this);
+  this._speed.addObserver(this);
 }
 
 Waypoint.prototype = {
@@ -647,19 +775,19 @@ Waypoint.prototype = {
   },
 
   get radius() {
-    return this._radius;
+    return this._radius.value;
   },
   set radius(val) {
-    this._radius = val;
-    this._notifyCreator();
+    this._radius.value = val;
+//    this._notifyCreator();
   },
 
   get speed() {
-    return this._speed;
+    return this._speed.value;
   },
   set speed(val) {
-    this._speed = val;
-    this._notifyCreator();
+    this._speed.value = val;
+//    this._notifyCreator();
   },
 
   get x() {
@@ -676,6 +804,10 @@ Waypoint.prototype = {
   set y(val) {
     this._y = val;
     this._notifyCreator();
+  },
+
+  onPropertyUpdated: function() {
+    this._creator.onWaypointUpdated();
   },
 
   _notifyCreator: function() {
@@ -783,7 +915,7 @@ Waypoints.prototype = {
   },
 
   _notifyObservers: function() {
-//    console.log("Billboards._notifyObservers()");
+//    console.log("Waypoints._notifyObservers()");
     for(let idx = 0; idx < this._observers.length; idx++) {
       this._observers[idx].onWaypointsUpdated();
     }
@@ -876,6 +1008,13 @@ PgpEdit_View.prototype = {
     document.getElementById("radius-textinput").addEventListener("change", this);
     document.getElementById("speed-textinput").addEventListener("change", this);
     document.getElementById("checkpoint-boolinput").addEventListener("change", this);
+
+    document.getElementById("physparms-button").addEventListener("click", this);
+    document.getElementById("physparms_ok-button").addEventListener("click", this);
+    document.getElementById("track_physparms_reset-button").addEventListener("click", this);
+    document.getElementById("terrain_physparms_reset-button").addEventListener("click", this);
+    document.getElementById("edge_physparms_reset-button").addEventListener("click", this);
+
     document.getElementById("loadtrack-fileinput").addEventListener("change", this);
     document.getElementById("savetrack-button").addEventListener("click", this);
 
@@ -884,6 +1023,10 @@ PgpEdit_View.prototype = {
     this._pgpedit_app.track_tiles.addObserver(this);
     this._pgpedit_app.billboards.addObserver(this);
     this._pgpedit_app.waypoints.addObserver(this);
+
+//    this._pgpedit_app.physics_parameters["track"].addObserver(this);
+//    this._pgpedit_app.physics_parameters["terrain"].addObserver(this);
+//    this._pgpedit_app.physics_parameters["edge"].addObserver(this);
 
     this.updateTileset();
     this._drawTileset();
@@ -925,24 +1068,10 @@ PgpEdit_View.prototype = {
       else if(dom_id == "radius-textinput" || dom_id == "speed-textinput" || dom_id == "checkpoint-boolinput") {
         if(this._pgpedit_app.waypoints.numWaypoints() > 0) {
           let radius = parseInt(document.getElementById("radius-textinput").value);
-          if(radius > 1024) {
-            radius = 1024;
-          }
-          else if(radius < 0) {
-            radius = 0;
-          }
-
           let speed = parseInt(document.getElementById("speed-textinput").value);
-          if(speed > 100) {
-            speed = 100;
-          }
-          else if(speed < 0) {
-            speed = 0;
-          }
-
           let checkpoint = document.getElementById("checkpoint-boolinput").checked;
 
-          let op = new setWaypointProperties_Operator(radius, speed, checkpoint, "WAYPOINTS");
+          let op = new SetWaypointProperties_Operator(radius, speed, checkpoint, "WAYPOINTS");
           this._pgpedit_app.executeOperator(op);
         }
         else {
@@ -961,17 +1090,19 @@ PgpEdit_View.prototype = {
       }
     }
     else if(evt.type == "keydown") {
-//      console.log(evt);
-      if(evt.ctrlKey && evt.key == "z") {
-        this._pgpedit_app.undo();
-      }
-      else if(evt.ctrlKey && (evt.key == "Z" || evt.key == "y")) {
-        this._pgpedit_app.redo();
-      }
-      else if(evt.key == "Shift" && this._mode == "TILES") {
-        this._tilemap_canvas.style.cursor = "pointer";
-        this._tilemap_canvas_dirty = true;
-        this._tilebrush_cursor_visible = false;
+      // Only handle key event if popup dialog is hidden
+      if(document.getElementById("popup-container").style.display != "block") {
+        if(evt.ctrlKey && evt.key == "z") {
+          this._pgpedit_app.undo();
+        }
+        else if(evt.ctrlKey && (evt.key == "Z" || evt.key == "y")) {
+          this._pgpedit_app.redo();
+        }
+        else if(evt.key == "Shift" && this._mode == "TILES") {
+          this._tilemap_canvas.style.cursor = "pointer";
+          this._tilemap_canvas_dirty = true;
+          this._tilebrush_cursor_visible = false;
+        }
       }
     }
     else if(evt.type == "keyup") {
@@ -989,15 +1120,60 @@ PgpEdit_View.prototype = {
           alert("Track name is empty");
         }
       }
-    }
-    else if(evt.type == "load") {
-//      console.assert(false, "Assertion failed");
-      let op = new ImportTrack_Operator(evt.target.result, "TILES");
-      this._pgpedit_app.executeOperator(op);
-      op = new ImportBillboards_Operator(evt.target.result, "BILLBOARDS");
-      this._pgpedit_app.executeOperator(op);
-      op = new ImportWaypoints_Operator(evt.target.result, "WAYPOINTS");
-      this._pgpedit_app.executeOperator(op);
+      else if(evt.target.id == "physparms-button") {
+        let tile_id_arr = ["track", "terrain", "edge"];
+        let idx = tile_id_arr.length;
+        while(idx--) {
+          tile_id = tile_id_arr[idx];
+          this._physicsParametersUpdated(tile_id);
+        }
+
+        // Show popup dialog
+        document.getElementById("popup-container").style.display = "block";
+      }
+      else if(evt.target.id == "physparms_ok-button") {
+        // Hide popup dialog
+        document.getElementById("popup-container").style.display = null;
+
+        let physparms = {};
+        let tile_id_arr = ["track", "terrain", "edge"];
+        let idx = tile_id_arr.length;
+        while(idx--) {
+          tile_id = tile_id_arr[idx];
+          let fs = document.getElementById(tile_id+"_fs-textinput").value;
+          let fk = document.getElementById(tile_id+"_fk-textinput").value;
+          let tract = document.getElementById(tile_id+"_tract-textinput").value;
+          let rr = document.getElementById(tile_id+"_rr-textinput").value;
+          physparms[tile_id] = [fs, fk, tract, rr];
+        }
+
+        // Update physics parameters if any of the values has changed
+        idx = tile_id_arr.length;
+        while(idx--) {
+          tile_id = tile_id_arr[idx];
+          let fs = this._pgpedit_app.physics_parameters[tile_id].static_friction;
+          let fk = this._pgpedit_app.physics_parameters[tile_id].kinetic_friction;
+          let tract = this._pgpedit_app.physics_parameters[tile_id].traction_constant;
+          let rr = this._pgpedit_app.physics_parameters[tile_id].rolling_resistance;
+          if(physparms[tile_id][0] != fs || physparms[tile_id][1] != fk || physparms[tile_id][2] != tract || physparms[tile_id][3] != rr) {
+            let op = new SetPysicsParameters_Operator(physparms, "");
+            this._pgpedit_app.executeOperator(op);
+            break;
+          }
+        }
+      }
+      else if(evt.target.id == "track_physparms_reset-button") {
+        this._pgpedit_app.resetDefaultPhysicsParameters("track");
+        this._physicsParametersUpdated("track");
+      }
+      else if(evt.target.id == "terrain_physparms_reset-button") {
+        this._pgpedit_app.resetDefaultPhysicsParameters("terrain");
+        this._physicsParametersUpdated("terrain");
+      }
+      else if(evt.target.id == "edge_physparms_reset-button") {
+        this._pgpedit_app.resetDefaultPhysicsParameters("edge");
+        this._physicsParametersUpdated("edge");
+      }
     }
 
     if(this._tilemap_canvas_dirty) {
@@ -1107,6 +1283,24 @@ PgpEdit_View.prototype = {
       }
     }
   },
+
+//  onPhysicsParametersUpdated: function() {
+//    console.log("PgpEdit_View.onPhysicsParametersUpdated()");
+//
+//    let tile_id_arr = ["track", "terrain", "edge"];
+//    let idx = tile_id_arr.length;
+//    while(idx--) {
+//      tile_id = tile_id_arr[idx];
+//      let fs = this._pgpedit_app.physics_parameters[tile_id].static_friction;
+//      let fk = this._pgpedit_app.physics_parameters[tile_id].kinetic_friction;
+//      let tract = this._pgpedit_app.physics_parameters[tile_id].traction_constant;
+//      let rr = this._pgpedit_app.physics_parameters[tile_id].rolling_resistance;
+//      document.getElementById(tile_id+"_fs-textinput").value = fs;
+//      document.getElementById(tile_id+"_fk-textinput").value = fk;
+//      document.getElementById(tile_id+"_tract-textinput").value = tract;
+//      document.getElementById(tile_id+"_rr-textinput").value = rr;
+//    }
+//  },
 
   updateTileset: function() {
 //    console.log("PgpEdit.updateTileset()");
@@ -1540,6 +1734,10 @@ PgpEdit_View.prototype = {
   },
 
   _onBillboardModeMousedown: function(evt) {
+    if(evt.button != 0) {
+      return;
+    }
+
     let billboards = this._pgpedit_app.billboards;
     let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
     let canvas_h = this._tilemap_canvas.height;
@@ -1590,8 +1788,7 @@ PgpEdit_View.prototype = {
 
   _onBillboardModeMousemove: function(evt) {
 //    console.log("PgpEdit_View._onBillboardModeMousemove()");
-
-    if(this._billboard_grabbed) {
+    if(evt.buttons&1 && this._billboard_grabbed) {
       let canvas_h = this._tilemap_canvas.height;
       let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
 
@@ -1611,7 +1808,7 @@ PgpEdit_View.prototype = {
   },
 
   _onBillboardModeMouseup: function(evt) {
-    if(this._billboard_grabbed) {
+    if(evt.button == 0 && this._billboard_grabbed) {
       this._billboard_grabbed = false;
       this._billboard_move_op = null;
     }
@@ -1630,6 +1827,10 @@ PgpEdit_View.prototype = {
   },
 
   _onWaypointModeMousedown: function(evt) {
+    if(evt.button != 0) {
+      return;
+    }
+
     let waypoints = this._pgpedit_app.waypoints;
     let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
     let canvas_h = this._tilemap_canvas.height;
@@ -1676,7 +1877,7 @@ PgpEdit_View.prototype = {
   _onWaypointModeMousemove: function(evt) {
 //    console.log("PgpEdit_View._onWaypointModeMousemove()");
 
-    if(this._waypoint_grabbed) {
+    if(evt.buttons&1 && this._waypoint_grabbed) {
       let canvas_h = this._tilemap_canvas.height;
       let mouse = this._canvasCoordinatesFromMouse(this._tilemap_canvas, evt);
 
@@ -1698,7 +1899,7 @@ PgpEdit_View.prototype = {
   },
 
   _onWaypointModeMouseup: function(evt) {
-    if(this._waypoint_grabbed) {
+    if(evt.button == 0 && this._waypoint_grabbed) {
       this._waypoint_grabbed = false;
       this._waypoint_move_op = null;
     }
@@ -1899,6 +2100,8 @@ PgpEdit_View.prototype = {
       reader.onload = function(evt) {
         let op = new ImportTrack_Operator(reader.result, "TILES");
         this._pgpedit_app.executeOperator(op);
+        op = new ImportPhysicsParameters_Operator(reader.result, "");
+        this._pgpedit_app.executeOperator(op);
         op = new ImportBillboards_Operator(reader.result, "BILLBOARDS");
         this._pgpedit_app.executeOperator(op);
         op = new ImportWaypoints_Operator(reader.result, "WAYPOINTS");
@@ -1959,7 +2162,18 @@ PgpEdit_View.prototype = {
       opt.innerHTML = billboards[idx].name;
       droplist.appendChild(opt);
     }
-  }
+  },
+
+  _physicsParametersUpdated: function(tile_id) {
+    let fs = this._pgpedit_app.physics_parameters[tile_id].static_friction;
+    let fk = this._pgpedit_app.physics_parameters[tile_id].kinetic_friction;
+    let tract = this._pgpedit_app.physics_parameters[tile_id].traction_constant;
+    let rr = this._pgpedit_app.physics_parameters[tile_id].rolling_resistance;
+    document.getElementById(tile_id+"_fs-textinput").value = fs;
+    document.getElementById(tile_id+"_fk-textinput").value = fk;
+    document.getElementById(tile_id+"_tract-textinput").value = tract;
+    document.getElementById(tile_id+"_rr-textinput").value = rr;
+  },
 };
 
 
@@ -1975,10 +2189,24 @@ function PgpEdit_Application() {
   this._tileset = new Tileset(this);
   this._track_tiles = new Tilemap(32, 32);
   this._waypoints = new Waypoints();
-  this._view = new PgpEdit_View(this);
   this._tex_img = {width: 0, height: 0, rects: []};
+  this._view = new PgpEdit_View(this);
+  this._default_phys_parms = {
+    track: [1.5, 1.4, 1500, 0.02], 
+    terrain: [0.9, 0.9, 500, 0.2], 
+    edge: [1.2, 1.1, 1500, 0.05]
+  };
+  this._phys_parms = {};
   this._redo_stack = [];
   this._undo_stack = [];
+
+  for(tile_id in this._default_phys_parms) {
+    let fs = this._default_phys_parms[tile_id][0];
+    let fk = this._default_phys_parms[tile_id][1];
+    let tract = this._default_phys_parms[tile_id][2];
+    let rr = this._default_phys_parms[tile_id][3];
+    this._phys_parms[tile_id] = new PhysicsParameters(fs, fk, tract, rr);
+  }
 }
 PgpEdit_Application.prototype = {
   _MAX_UNDOS: 999,
@@ -2089,6 +2317,18 @@ PgpEdit_Application.prototype = {
 
   get view() {
     return this._view;
+  },
+
+  get physics_parameters() {
+    return this._phys_parms;
+  },
+
+  resetDefaultPhysicsParameters: function(tile_id) {
+    let parms = this._default_phys_parms[tile_id];
+    this._phys_parms[tile_id].static_friction = parms[0];
+    this._phys_parms[tile_id].kinetic_friction = parms[1];
+    this._phys_parms[tile_id].traction_constant = parms[2];
+    this._phys_parms[tile_id].rolling_resistance = parms[3];
   },
 
   executeOperator: function(operator) {
@@ -2412,7 +2652,7 @@ MoveBillboard_Operator.prototype = {
 
 /* setWaypointProperties_Operator class
 */
-function setWaypointProperties_Operator(radius, speed, checkpoint, mode = "") {
+function SetWaypointProperties_Operator(radius, speed, checkpoint, mode = "") {
   this._mode = mode;
   this._prev_radius = null;
   this._prev_speed = null;
@@ -2422,7 +2662,7 @@ function setWaypointProperties_Operator(radius, speed, checkpoint, mode = "") {
   this._checkpoint = checkpoint;
   this._waypoint_idx = -1;
 }
-setWaypointProperties_Operator.prototype = {
+SetWaypointProperties_Operator.prototype = {
   init: function(app) {
     let waypoint = app.waypoints.getActiveWaypoint();
     for(let idx = 0; idx < app.waypoints.numWaypoints(); idx++) {
@@ -2443,7 +2683,7 @@ setWaypointProperties_Operator.prototype = {
   },
 
   execute: function(app) {
-//    console.log("setWaypointProperties_Operator.execute()");
+//    console.log("SetWaypointProperties_Operator.execute()");
 
     let waypoint = app.waypoints.getWaypoint(this._waypoint_idx);
     waypoint.radius = this._radius;
@@ -2453,7 +2693,7 @@ setWaypointProperties_Operator.prototype = {
   },
 
   revert: function(app) {
-//    console.log("setWaypointProperties_Operator.revert()");
+//    console.log("SetWaypointProperties_Operator.revert()");
 
     let waypoint = app.waypoints.getWaypoint(this._waypoint_idx);
     waypoint.radius = this._prev_radius;
@@ -2631,6 +2871,67 @@ MoveWaypoint_Operator.prototype = {
   }
 };
 
+/* SetPysicsParameters_Operator class
+*/
+SetPysicsParameters_Operator = function(physparms, mode = "") {
+  // physparms: { track: [fk, fs, tract, rr], terrain: [fk, fs, tract, rr], edge: [fk, fs, tract, rr] }
+  this._mode = mode;
+  this._prev_physparms = null;
+  this._physparms = physparms;
+}
+SetPysicsParameters_Operator.prototype = {
+  init: function(app) {
+//    console.log("SetPysicsParameters_Operator.init()");
+
+    this._prev_physparms = {track: [], terrain: [], edge: []};
+
+    tile_id_arr = ["track", "terrain", "edge"];
+    let idx = tile_id_arr.length;
+    while(idx--) {
+      tile_id = tile_id_arr[idx];
+      let fs = app.physics_parameters[tile_id].static_friction;
+      let fk = app.physics_parameters[tile_id].kinetic_friction;
+      let tract = app.physics_parameters[tile_id].traction_constant;
+      let rr = app.physics_parameters[tile_id].rolling_resistance;
+      this._prev_physparms[tile_id] = [fs, fk, tract, rr];
+    }
+  },
+
+  poll: function(app) {
+    return (this._mode == "" || this._mode.indexOf(app.view.mode) >= 0);
+  },
+
+  execute: function(app) {
+//    console.log("SetPysicsParameters_Operator.execute()");
+
+    tile_id_arr = ["track", "terrain", "edge"];
+    let idx = tile_id_arr.length;
+    while(idx--) {
+      tile_id = tile_id_arr[idx];
+      app.physics_parameters[tile_id].static_friction = this._physparms[tile_id][0];
+      app.physics_parameters[tile_id].kinetic_friction = this._physparms[tile_id][1];
+      app.physics_parameters[tile_id].traction_constant = this._physparms[tile_id][2];
+      app.physics_parameters[tile_id].rolling_resistance = this._physparms[tile_id][3];
+    }
+    // Not undoable
+    return false;
+  },
+
+  revert: function(app) {
+//    console.log("SetPysicsParameters_Operator.revert()");
+
+    tile_id_arr = ["track", "terrain", "edge"];
+    let idx = tile_id_arr.length;
+    while(idx--) {
+      tile_id = tile_id_arr[idx];
+      app.physics_parameters[tile_id].static_friction = this._prev_physparms[tile_id][0];
+      app.physics_parameters[tile_id].kinetic_friction = this._prev_physparms[tile_id][1];
+      app.physics_parameters[tile_id].traction_constant = this._prev_physparms[tile_id][2];
+      app.physics_parameters[tile_id].rolling_resistance = this._prev_physparms[tile_id][3];
+    }
+  },
+};
+
 
 /* ImportTrack_Operator class
 */
@@ -2726,6 +3027,119 @@ ImportTrack_Operator.prototype = {
     }
 
     app.track_tiles.putTileData(track_tiles, 0, 0, map_w, map_h);
+
+    return linenum;
+  }
+};
+
+
+/* ImportPhysicsParameters_Operator class
+*/
+ImportPhysicsParameters_Operator = function(text, mode = "") {
+  this._mode = mode;
+  this._prev_physparms = [];
+
+  this._text = text.slice();
+}
+
+ImportPhysicsParameters_Operator.prototype = {
+  init: function(app) {
+//    console.log("ImportPhysicsParameters_Operator.init()");
+
+    this._prev_physparms = {track: [], terrain: [], edge: []};
+
+    tile_id_arr = ["track", "terrain", "edge"];
+    let idx = tile_id_arr.length;
+    while(idx--) {
+      tile_id = tile_id_arr[idx];
+      let fs = app.physics_parameters[tile_id].static_friction;
+      let fk = app.physics_parameters[tile_id].kinetic_friction;
+      let tract = app.physics_parameters[tile_id].traction_constant;
+      let rr = app.physics_parameters[tile_id].rolling_resistance;
+      this._prev_physparms[tile_id] = [fs, fk, tract, rr];
+    }
+  },
+
+  poll: function(app) {
+    return (this._mode == "" || this._mode.indexOf(app.view.mode) >= 0);
+  },
+
+  execute: function(app) {
+//    console.log("ImportPhysicsParameters_Operator.execute()");
+
+    let lines = this._text.split('\n');
+    let linenum = 0;
+    let currline = lines[linenum].trim();
+
+    while(linenum < lines.length) {
+      currline = lines[linenum].trim();
+      if(currline.length > 0) {
+        if(currline == "[physics]") {
+          linenum = this._parsePhysicsParameters(app, lines, linenum+1);
+        }
+      }
+      linenum++;
+    }
+    // Not undoable
+    return false;
+  },
+
+  revert: function(app) {
+//    console.log("ImportPhysicsParameters_Operator.revert()");
+
+    tile_id_arr = ["track", "terrain", "edge"];
+    let idx = tile_id_arr.length;
+    while(idx--) {
+      tile_id = tile_id_arr[idx];
+      app.physics_parameters[tile_id].static_friction = this._prev_physparms[tile_id][0];
+      app.physics_parameters[tile_id].kinetic_friction = this._prev_physparms[tile_id][1];
+      app.physics_parameters[tile_id].traction_constant = this._prev_physparms[tile_id][2];
+      app.physics_parameters[tile_id].rolling_resistance = this._prev_physparms[tile_id][3];
+    }
+  },
+
+  _parsePhysicsParameters: function(app, lines, linenum) {
+    let tile_id_arr = ["track", "terrain", "edge"];
+
+    while(linenum < lines.length) {
+      let errorFlag = false;
+      let currline = lines[linenum].trim();
+      if(currline.length > 0) {
+        if(currline[0] == "[") {
+          break;
+        }
+        values = currline.split(",")
+        if(values.length == 5) {
+          let idx = parseInt(values[0]);
+          let fs = parseFloat(values[1]);
+          let fk = parseFloat(values[2]);
+          let tract = parseInt(values[3]);
+          let rr = parseFloat(values[4]);
+          if(idx < tile_id_arr.length) {
+            if(isNaN(fs) || isNaN(fk) || isNaN(tract) || isNaN(rr)) {
+              errorFlag = true;
+            }
+            else {
+              let tile_id = tile_id_arr[idx];
+              app.physics_parameters[tile_id].static_friction = fs/100.0;
+              app.physics_parameters[tile_id].kinetic_friction = fk/100.0;
+              app.physics_parameters[tile_id].traction_constant = tract;
+              app.physics_parameters[tile_id].rolling_resistance = rr/100.0;
+            }
+          }
+          else {
+            errorFlag = true;
+          }
+        }
+        else {
+          errorFlag = true;
+        }
+      }
+      if(errorFlag) {
+        alert("Error on line "+(linenum+1)+": Invalid physics parameters definition.");
+      }
+      linenum++;
+    }
 
     return linenum;
   }
@@ -2980,7 +3394,8 @@ ExportAsZip_Operator.prototype = {
     let folder = zip.folder("pgpdata/tracks/"+foldername);
 
     let track_str = this._trackToString(app);
-    folder.file("track.txt", track_str);
+    let physparms_str = this._physicsParametersToString(app);
+    folder.file("track.txt", [track_str, physparms_str].join("\n"));
 
     if(app.waypoints.numWaypoints() > 0 || app.billboards.numBillboardObjects() > 0) {
       let waypoints_str = this._waypointsToString(app);
@@ -3029,6 +3444,22 @@ ExportAsZip_Operator.prototype = {
 //    console.log(lines.join('\n'));
 //    console.assert(lines.length == 2+h, "Assertion failed");
 
+    return lines.join('\n');
+  },
+
+  _physicsParametersToString: function(app) {
+    let lines = [];
+    lines.push("[physics]");
+
+    let tile_id_array = ["track", "terrain", "edge"];
+    for(let idx = 0; idx < tile_id_array.length; idx++) {
+      let tile_id = tile_id_array[idx];
+      let fs = parseInt(100*app.physics_parameters[tile_id].static_friction);
+      let fk = parseInt(100*app.physics_parameters[tile_id].kinetic_friction);
+      let tract = app.physics_parameters[tile_id].traction_constant;
+      let rr = parseInt(100*app.physics_parameters[tile_id].rolling_resistance);
+      lines.push(idx+","+fs+","+fk+","+tract+","+rr);
+    }
     return lines.join('\n');
   },
 
