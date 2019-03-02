@@ -9,6 +9,7 @@ Features:
 * Undo and redo actions
 * Copy tiles
 * Custom tile textures
+* Edit track physics parameters
 * Track and textures saved in a single zip file
 
 ### License
