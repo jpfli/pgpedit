@@ -3395,12 +3395,14 @@ ExportAsZip_Operator.prototype = {
 
     let track_str = this._trackToString(app);
     let physparms_str = this._physicsParametersToString(app);
-    folder.file("track.txt", [track_str, physparms_str].join("\n"));
+    // PokittoGP fails to read the last value if there is no newline at the end
+    folder.file("track.txt", [track_str, physparms_str].join("\n")+"\n");
 
     if(app.waypoints.numWaypoints() > 0 || app.billboards.numBillboardObjects() > 0) {
       let waypoints_str = this._waypointsToString(app);
       let billboards_str = this._billboardsToString(app);
-      folder.file("objects.txt", [waypoints_str, billboards_str].join("\n"));
+    // PokittoGP fails to read the last value if there is no newline at the end
+      folder.file("objects.txt", [waypoints_str, billboards_str].join("\n")+"\n");
     }
 
     let color_map = this._createColorMap(app);
